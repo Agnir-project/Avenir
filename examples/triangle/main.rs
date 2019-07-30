@@ -1,20 +1,19 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 extern crate log;
+extern crate render_lib;
 extern crate simple_logger;
 extern crate winit;
-extern crate render_lib;
 
 use gfx_hal::{
     window::CompositeAlpha::{Inherit, Opaque, PostMultiplied, PreMultiplied},
     window::PresentMode::{Fifo, Immediate, Mailbox, Relaxed},
 };
 
-
 use render_lib::{hal_state::HalState, hal_state::HalStateOptions, Triangle};
-use winit::{dpi::LogicalSize, CreationError, EventsLoop, Window, WindowBuilder};
-
-
+use winit::{
+    dpi::LogicalSize, CreationError, Event, EventsLoop, Window, WindowBuilder, WindowEvent,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct LocalState {
@@ -114,7 +113,6 @@ fn do_the_render(hal_state: &mut HalState, local_state: &LocalState) -> Result<(
     };
     hal_state.draw_triangle_frame(triangle1)
 }
-
 
 fn main() {
     simple_logger::init().unwrap();

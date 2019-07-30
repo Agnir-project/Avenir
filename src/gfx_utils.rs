@@ -115,7 +115,7 @@ where
     pub fn get_present_mode(
         adapter: &Adapter<B>,
         surface: &B::Surface,
-        preferred_modes: Vec<PresentMode>,
+        preferred_modes: &Vec<PresentMode>,
     ) -> Result<PresentMode, &'static str> {
         let (_, _, present_modes, _) = surface.compatibility(&adapter.physical_device);
         Ok(preferred_modes
@@ -128,7 +128,7 @@ where
     pub fn get_composite_alpha(
         adapter: &Adapter<B>,
         surface: &B::Surface,
-        preferred_modes: Vec<CompositeAlpha>,
+        preferred_modes: &Vec<CompositeAlpha>,
     ) -> Result<CompositeAlpha, &'static str> {
         let (_, _, _, composite_alphas) = surface.compatibility(&adapter.physical_device);
         Ok(preferred_modes
@@ -197,7 +197,7 @@ where
         if caps.usage.contains(Usage::COLOR_ATTACHMENT) {
             Ok(Usage::COLOR_ATTACHMENT)
         } else {
-            Err("The Surface isn't capable of supporting color!")?
+            Err("The Surface isn't capable of supporting color!")
         }
     }
 

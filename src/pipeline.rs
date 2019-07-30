@@ -20,14 +20,62 @@ use gfx_hal::pso::VertexBufferDesc;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::rc::{Rc, Weak};
-use std::ops::Deref;
+use std::rc::Rc;
 
 use crate::shader_utils::ShaderUtils;
 use crate::utils::{Build, With};
 use gfx_hal::window::Extent2D;
 use gfx_hal::Backend;
 use gfx_hal::Device;
+
+pub struct ShaderEntry<B: Backend<Device = D>, D: Device<B>> {
+    shader_module: B::ShaderModule,
+    shader_type: shaderc::ShaderKind,
+    _device: std::marker::PhantomData<D>,
+}
+
+impl<B: Backend<Device = D>, D: Device<B>> ShaderEntry<B, D> {
+    fn new(shader_module: B::ShaderModule, shader_type: shaderc::ShaderKind) -> Self {
+        ShaderEntry {
+            shader_module,
+            shader_type,
+            _device: std::marker::PhantomData,
+        }
+    }
+
+    fn compute_entry(&self) -> EntryPoint<B> {
+        EntryPoint {
+            entry: "main",
+            module: &self.shader_module,
+            specialization: Specialization {
+                constants: &[],
+                data: &[],
+            },
+        }
+    }
+}
+
+fn vec_shader_entry_into_graphicset<'a, B: Backend<Device = D>, D: Device<B>>(
+    from: &'a [ShaderEntry<B, D>],
+) -> Result<GraphicsShaderSet<'a, B>, &'static str> {
+    let vertex_idx = from
+        .iter()
+        .position(|elem| elem.shader_type == shaderc::ShaderKind::Vertex)
+        .ok_or("No vertex shader found.")?;
+
+    let fragment = from
+        .iter()
+        .position(|elem| elem.shader_type == shaderc::ShaderKind::Fragment)
+        .map(|e| from[e].compute_entry());
+
+    Ok(GraphicsShaderSet {
+        vertex: from[vertex_idx].compute_entry(),
+        hull: None,
+        domain: None,
+        geometry: None,
+        fragment,
+    })
+}
 
 pub struct Pipeline<B: Backend<Device = D>, D: Device<B>> {
     pub descriptor_set: B::DescriptorSet,
@@ -46,12 +94,9 @@ pub struct PipelineBuilder<'a, B: Backend<Device = D>, D: Device<B>> {
     descriptor_set_layout_binding: Vec<DescriptorSetLayoutBinding>,
     descriptor_range_desc: Vec<DescriptorRangeDesc>,
     immutables_sampler: Vec<B::Sampler>,
-    shader_modules: Vec<Rc<B::ShaderModule>>,
-    shader_modules_rc: Vec<Rc<B::ShaderModule>>,
+    shader_entries: Vec<ShaderEntry<B, D>>,
     vertex_buffers: Vec<VertexBufferDesc>,
     input_assembler_desc: Option<InputAssemblerDesc>,
-    vs_entry: Option<EntryPoint<'a, B>>,
-    fs_entry: Option<EntryPoint<'a, B>>,
     rasterizer: Option<Rasterizer>,
     depth_stencil_desc: Option<DepthStencilDesc>,
     blender_desc: Option<BlendDesc>,
@@ -70,6 +115,7 @@ where
     ) -> Result<Self, &'static str> {
         let compiler = shaderc::Compiler::new().ok_or("shaderc not found!")?;
         Ok(PipelineBuilder {
+            shader_entries: vec![],
             compiler,
             device,
             extent,
@@ -78,12 +124,8 @@ where
             descriptor_set_layout_binding: vec![],
             descriptor_range_desc: vec![],
             immutables_sampler: vec![],
-            shader_modules: vec![],
-            shader_modules_rc: vec![],
             vertex_buffers: vec![],
             input_assembler_desc: None,
-            vs_entry: None,
-            fs_entry: None,
             rasterizer: None,
             depth_stencil_desc: None,
             blender_desc: None,
@@ -93,35 +135,40 @@ where
         })
     }
 
-    pub fn with_fragment(mut self, shader_source: &str, entry: &'static str) -> Result<Self, &'static str> {
-        let module = Rc::new(ShaderUtils::<B, D>::fragment_to_module(&self.device, &mut self.compiler, shader_source, entry)?);
-        self.vs_entry = Some(EntryPoint {
+    pub fn with_fragment(
+        mut self,
+        shader_source: &str,
+        entry: &'static str,
+    ) -> Result<Self, &'static str> {
+        let module = ShaderUtils::<B, D>::fragment_to_module(
+            &self.device,
+            &mut self.compiler,
+            shader_source,
             entry,
-            module: &module,
-            specialization: Specialization {
-                constants: &[],
-                data: &[],
-            },
-        });
-        self.shader_modules.push(module.clone());
+        )?;
+
+        self.shader_entries
+            .push(ShaderEntry::new(module, shaderc::ShaderKind::Fragment));
         Ok(self)
     }
 
-    pub fn with_vertex(mut self, shader_source: &str, entry: &'static str) -> Result<Self, &'static str> {
-        let module = Rc::new(ShaderUtils::<B, D>::vertex_to_module(&self.device, &mut self.compiler, shader_source, entry)?);
-        self.vs_entry = Some(EntryPoint {
+    pub fn with_vertex(
+        mut self,
+        shader_source: &str,
+        entry: &'static str,
+    ) -> Result<Self, &'static str> {
+        let module = ShaderUtils::<B, D>::vertex_to_module(
+            &self.device,
+            &mut self.compiler,
+            shader_source,
             entry,
-            module: module.clone().deref(),
-            specialization: Specialization {
-                constants: &[],
-                data: &[],
-            },
-        });
-        self.shader_modules.push(module);
+        )?;
+
+        self.shader_entries
+            .push(ShaderEntry::new(module, shaderc::ShaderKind::Vertex));
         Ok(self)
     }
 }
-
 
 impl<'a, B, D> Build<Result<Pipeline<B, D>, &'static str>> for PipelineBuilder<'a, B, D>
 where
@@ -153,41 +200,21 @@ where
                 .create_pipeline_layout(&descriptor_set_layouts, push_constants)
                 .map_err(|_| "Couldn't create a pipeline layout")?
         };
-        if let None = self.input_assembler_desc {
-            return Err("No input assembler specified.")
-        }
-        if let None = self.vs_entry {
-            return Err("No vertex shader specified.")
-        }
-        if let None = self.rasterizer {
-            return Err("No rasterizer specified.")
-        }
-        if let None = self.depth_stencil_desc {
-            return Err("No depth stencil specified.")
-        }
-        if let None = self.blender_desc {
-            return Err("No blender specified")
-        }
-        if let None = self.baked_states {
-            return Err("No baked states specified");
-        }
         let graphics_pipeline = {
             let desc = GraphicsPipelineDesc {
-                shaders: GraphicsShaderSet {
-                    vertex: self.vs_entry.unwrap(),
-                    hull: None,
-                    domain: None,
-                    geometry: None,
-                    fragment: self.fs_entry,
-                },
-                rasterizer: self.rasterizer.unwrap(),
+                shaders: vec_shader_entry_into_graphicset(&self.shader_entries)?,
+                rasterizer: self.rasterizer.ok_or("No rasterizer specified.")?,
                 vertex_buffers: self.vertex_buffers,
                 attributes: self.attributes_desc,
-                input_assembler: self.input_assembler_desc.unwrap(),
-                blender: self.blender_desc.unwrap(),
-                depth_stencil: self.depth_stencil_desc.unwrap(),
+                input_assembler: self
+                    .input_assembler_desc
+                    .ok_or("No input assembler desc specified.")?,
+                blender: self.blender_desc.ok_or("No blender desc specified.")?,
+                depth_stencil: self
+                    .depth_stencil_desc
+                    .ok_or("No depth stencil specified.")?,
                 multisampling: None,
-                baked_states: self.baked_states.unwrap(),
+                baked_states: self.baked_states.ok_or("No states specified.")?,
                 layout: &pipeline_layout,
                 subpass: Subpass {
                     index: 0,
@@ -203,11 +230,9 @@ where
             }
         };
         let device = self.device;
-        self.shader_modules
-            .into_iter()
-            .map(|module| unsafe {
-                device.destroy_shader_module(Rc::try_unwrap(module).unwrap())
-            });
+        for elem in self.shader_entries {
+            unsafe { device.destroy_shader_module(elem.shader_module) }
+        }
         Ok(Pipeline {
             descriptor_set,
             pipeline_layout,
@@ -298,7 +323,7 @@ where
     B: Backend<Device = D>,
     D: Device<B>,
 {
-    fn with(self, data: BlendDesc) -> Self {
+    fn with(mut self, data: BlendDesc) -> Self {
         self.blender_desc = Some(data);
         self
     }

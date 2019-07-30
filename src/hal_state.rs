@@ -76,7 +76,7 @@ pub struct HalStateOptions {
 
 pub type HalState = GenericHalState<back::Backend, back::Device, back::Instance>;
 
-struct GenericHalState<B: Backend<Device = D>, D: Device<B>, I: Instance<Backend = B>> {
+pub struct GenericHalState<B: Backend<Device = D>, D: Device<B>, I: Instance<Backend = B>> {
     current_frame: usize,
     frames_in_flight: u32,
     in_flight_fences: Vec<B::Fence>,
@@ -131,9 +131,12 @@ where
         let format = GfxUtils::<B, D, I>::get_format(&adapter, &surface)?;
         let extent = GfxUtils::<B, D, I>::get_extent(&adapter, &surface, window)?;
         let image_usage = GfxUtils::<B, D, I>::get_image_usage(&adapter, &surface)?;
-        let present_mode = GfxUtils::<B, D, I>::get_present_mode(&adapter, &surface, opt.pm_order)?;
-        let composite_alpha = GfxUtils::<B, D, I>::get_composite_alpha(&adapter, &surface, opt.ca_order)?;
-        let frames_in_flight = GfxUtils::<B, D, I>::get_image_count(&adapter, &surface, present_mode);
+        let present_mode =
+            GfxUtils::<B, D, I>::get_present_mode(&adapter, &surface, &opt.pm_order)?;
+        let composite_alpha =
+            GfxUtils::<B, D, I>::get_composite_alpha(&adapter, &surface, &opt.ca_order)?;
+        let frames_in_flight =
+            GfxUtils::<B, D, I>::get_image_count(&adapter, &surface, present_mode);
         let (swapchain, backbuffer) = GfxUtils::<B, D, I>::get_swapchain(
             &device,
             &mut surface,
@@ -149,30 +152,33 @@ where
         )?;
         let render_pass = GfxUtils::<B, D, I>::get_render_pass(format, &device)?;
         let (image_available_semaphores, render_finished_semaphores, in_flight_fences) = {
-            let mut in_flight_fences = ((0..frames_in_flight)
+            let in_flight_fences = ((0..frames_in_flight)
                 .map(|_| {
                     let fence = device
                         .create_fence(true)
                         .map_err(|_| "Could not create a fence!")?;
-                    unsafe { Ok(std::mem::transmute::<_, B::Fence>(fence)) }
+                    Ok(fence)
                 })
                 .collect(): Result<Vec<_>, _>)?;
-            let mut render_finished_semaphores = ((0..frames_in_flight)
+
+            let render_finished_semaphores = ((0..frames_in_flight)
                 .map(|_| {
                     let semaphore = device
                         .create_semaphore()
                         .map_err(|_| "Could not create a semaphore!")?;
-                    unsafe { Ok(std::mem::transmute::<_, B::Semaphore>(semaphore)) }
+                    Ok(semaphore)
                 })
                 .collect(): Result<Vec<_>, _>)?;
-            let mut image_available_semaphores = ((0..frames_in_flight)
+
+            let image_available_semaphores = ((0..frames_in_flight)
                 .map(|_| {
                     let semaphore = device
                         .create_semaphore()
                         .map_err(|_| "Could not create a semaphore!")?;
-                    unsafe { Ok(std::mem::transmute::<_, B::Semaphore>(semaphore)) }
+                    Ok(semaphore)
                 })
                 .collect(): Result<Vec<_>, _>)?;
+
             (
                 image_available_semaphores,
                 render_finished_semaphores,
