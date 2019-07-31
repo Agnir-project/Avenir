@@ -28,14 +28,16 @@ use gfx_hal::window::Extent2D;
 use gfx_hal::Backend;
 use gfx_hal::Device;
 
+use shaderc::ShaderKind;
+
 pub struct ShaderEntry<B: Backend<Device = D>, D: Device<B>> {
     shader_module: B::ShaderModule,
-    shader_type: shaderc::ShaderKind,
+    shader_type: ShaderKind,
     _device: std::marker::PhantomData<D>,
 }
 
 impl<B: Backend<Device = D>, D: Device<B>> ShaderEntry<B, D> {
-    fn new(shader_module: B::ShaderModule, shader_type: shaderc::ShaderKind) -> Self {
+    fn new(shader_module: B::ShaderModule, shader_type: ShaderKind) -> Self {
         ShaderEntry {
             shader_module,
             shader_type,
@@ -60,12 +62,12 @@ fn vec_shader_entry_into_graphicset<'a, B: Backend<Device = D>, D: Device<B>>(
 ) -> Result<GraphicsShaderSet<'a, B>, &'static str> {
     let vertex_idx = from
         .iter()
-        .position(|elem| elem.shader_type == shaderc::ShaderKind::Vertex)
+        .position(|elem| elem.shader_type == ShaderKind::Vertex)
         .ok_or("No vertex shader found.")?;
 
     let fragment = from
         .iter()
-        .position(|elem| elem.shader_type == shaderc::ShaderKind::Fragment)
+        .position(|elem| elem.shader_type == ShaderKind::Fragment)
         .map(|e| from[e].compute_entry());
 
     Ok(GraphicsShaderSet {
@@ -148,7 +150,7 @@ where
         )?;
 
         self.shader_entries
-            .push(ShaderEntry::new(module, shaderc::ShaderKind::Fragment));
+            .push(ShaderEntry::new(module, ShaderKind::Fragment));
         Ok(self)
     }
 
@@ -165,7 +167,7 @@ where
         )?;
 
         self.shader_entries
-            .push(ShaderEntry::new(module, shaderc::ShaderKind::Vertex));
+            .push(ShaderEntry::new(module, ShaderKind::Vertex));
         Ok(self)
     }
 }
