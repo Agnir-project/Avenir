@@ -13,21 +13,29 @@ where
     B: Backend<Device = D>,
     D: Device<B>,
 {
-    pub fn vertex_to_module(
-        device: &D,
+
+    pub fn source_to_artifact(
         compiler: &mut Compiler,
+        kind: shaderc::ShaderKind,
         source: &str,
         entry: &str,
-    ) -> Result<B::ShaderModule, &'static str> {
-        let artifact = compiler
+    ) -> Result<shaderc::CompilationArtifact, &'static str> {
+        Ok(compiler
             .compile_into_spirv(
                 source,
-                shaderc::ShaderKind::Vertex,
+                kind,
                 "vertex.vert",
                 entry,
                 None,
             )
-            .map_err(|_| "Couldn't compile vertex shader!")?;
+            .map_err(|_| "Couldn't compile vertex shader!")?
+        )
+    }
+
+    pub fn artifact_to_module(
+        device: &D,
+        artifact: shaderc::CompilationArtifact
+    ) -> Result<B::ShaderModule, &'static str> {
         Ok(unsafe {
             device
                 .create_shader_module(artifact.as_binary_u8())
@@ -35,25 +43,14 @@ where
         })
     }
 
-    pub fn fragment_to_module(
+    pub fn source_to_module(
         device: &D,
         compiler: &mut Compiler,
+        kind: shaderc::ShaderKind,
         source: &str,
         entry: &str,
     ) -> Result<B::ShaderModule, &'static str> {
-        let artifact = compiler
-            .compile_into_spirv(
-                source,
-                shaderc::ShaderKind::Fragment,
-                "fragment.frag",
-                entry,
-                None,
-            )
-            .map_err(|_| "Couldn't compile fragment shader!")?;
-        Ok(unsafe {
-            device
-                .create_shader_module(artifact.as_binary_u8())
-                .map_err(|_| "Couldn't make the fragment module")?
-        })
+        let artifact = Self::source_to_artifact(compiler, kind, source, entry)?;
+        Self::artifact_to_module(device, artifact)
     }
 }

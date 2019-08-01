@@ -27,39 +27,15 @@ use crate::back;
 use crate::buffer_bundle::BufferBundle;
 use crate::gfx_utils::GfxUtils;
 use crate::pipeline::{Pipeline, PipelineBuilder};
-use crate::utils::{Build, With};
+use crate::utils::{Build, With, WithError};
 use gfx_hal::Primitive;
 
 use winit::Window;
 
-pub const VERTEX_SOURCE: &str = "#version 450
-layout (location = 0) in vec2 position;
-layout (location = 1) in vec3 color;
-
-layout (location = 0) out gl_PerVertex {
-  vec4 gl_Position;
-};
-layout (location = 1) out vec3 frag_color;
-
-void main()
-{
-  gl_Position = vec4(position, 0.0, 1.0);
-  frag_color = color;
-}";
-
-pub const FRAGMENT_SOURCE: &str = "#version 450
-layout (location = 1) in vec3 frag_color;
-
-layout (location = 0) out vec4 color;
-
-void main()
-{
-  color = vec4(frag_color,1.0);
-}";
-
-pub struct HalStateOptions {
+pub struct HalStateOptions<'a> {
     pub pm_order: Vec<PresentMode>,
     pub ca_order: Vec<CompositeAlpha>,
+    pub shaders: &'a [(shaderc::ShaderKind, String)]
 }
 
 pub type HalState = GenericHalState<back::Backend, back::Device, back::Instance>;
@@ -231,7 +207,7 @@ where
                 dst: Factor::Zero,
             },
         };
-        let pipeline = PipelineBuilder::new(&mut device, extent, &render_pass)?
+        let mut pipeline_builder = PipelineBuilder::new(&mut device, extent, &render_pass)?
             .with(AttributeDesc {
                 // XY
                 location: 0,
@@ -251,8 +227,6 @@ where
                 },
             })
             .with(InputAssemblerDesc::new(Primitive::TriangleList))
-            .with_fragment(FRAGMENT_SOURCE, "main")?
-            .with_vertex(VERTEX_SOURCE, "main")?
             .with(VertexBufferDesc {
                 binding: 0,
                 stride: (std::mem::size_of::<f32>() * 5) as u32,
@@ -283,8 +257,12 @@ where
                 scissor: Some(extent.to_extent().rect()),
                 blend_color: None,
                 depth_bounds: None,
-            })
-            .build()?;
+            });
+
+        for item in opt.shaders {
+            pipeline_builder = pipeline_builder.with_error(&item)?;
+        }
+        let pipeline = pipeline_builder.build()?;
         const F32_XY_RGB_TRIANGLE: usize = size_of::<f32>() * (2 + 3) * 3;
         let vertices = BufferBundle::new(
             &adapter,

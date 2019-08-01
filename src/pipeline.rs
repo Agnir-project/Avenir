@@ -23,7 +23,7 @@ use log::{debug, error, info, trace, warn};
 use std::rc::Rc;
 
 use crate::shader_utils::ShaderUtils;
-use crate::utils::{Build, With};
+use crate::utils::{Build, With, WithError};
 use gfx_hal::window::Extent2D;
 use gfx_hal::Backend;
 use gfx_hal::Device;
@@ -137,39 +137,6 @@ where
         })
     }
 
-    pub fn with_fragment(
-        mut self,
-        shader_source: &str,
-        entry: &'static str,
-    ) -> Result<Self, &'static str> {
-        let module = ShaderUtils::<B, D>::fragment_to_module(
-            &self.device,
-            &mut self.compiler,
-            shader_source,
-            entry,
-        )?;
-
-        self.shader_entries
-            .push(ShaderEntry::new(module, ShaderKind::Fragment));
-        Ok(self)
-    }
-
-    pub fn with_vertex(
-        mut self,
-        shader_source: &str,
-        entry: &'static str,
-    ) -> Result<Self, &'static str> {
-        let module = ShaderUtils::<B, D>::vertex_to_module(
-            &self.device,
-            &mut self.compiler,
-            shader_source,
-            entry,
-        )?;
-
-        self.shader_entries
-            .push(ShaderEntry::new(module, ShaderKind::Vertex));
-        Ok(self)
-    }
 }
 
 impl<'a, B, D> Build<Result<Pipeline<B, D>, &'static str>> for PipelineBuilder<'a, B, D>
@@ -339,5 +306,25 @@ where
     fn with(mut self, data: BakedStates) -> Self {
         self.baked_states = Some(data);
         self
+    }
+}
+
+impl<'a, B, D> WithError<&(shaderc::ShaderKind, String), &'static str> for PipelineBuilder<'a, B, D>
+where
+    B: Backend<Device = D>,
+    D: Device<B>,
+{
+    fn with_error(mut self, shader_source: &(shaderc::ShaderKind, String)) -> Result<Self, &'static str> {
+        let module = ShaderUtils::<B, D>::source_to_module(
+            &self.device,
+            &mut self.compiler,
+            shader_source.0,
+            &shader_source.1,
+            "main",
+        )?;
+
+        self.shader_entries
+            .push(ShaderEntry::new(module, ShaderKind::Vertex));
+        Ok(self)
     }
 }

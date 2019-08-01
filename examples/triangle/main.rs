@@ -5,6 +5,33 @@ extern crate render_lib;
 extern crate simple_logger;
 extern crate winit;
 
+
+pub const VERTEX_SOURCE: &str = "#version 450
+layout (location = 0) in vec2 position;
+layout (location = 1) in vec3 color;
+
+layout (location = 0) out gl_PerVertex {
+  vec4 gl_Position;
+};
+layout (location = 1) out vec3 frag_color;
+
+void main()
+{
+  gl_Position = vec4(position, 0.0, 1.0);
+  frag_color = color;
+}";
+
+pub const FRAGMENT_SOURCE: &str = "#version 450
+layout (location = 1) in vec3 frag_color;
+
+layout (location = 0) out vec4 color;
+
+void main()
+{
+  color = vec4(frag_color,1.0);
+}";
+
+
 use gfx_hal::{
     window::CompositeAlpha::{Inherit, Opaque, PostMultiplied, PreMultiplied},
     window::PresentMode::{Fifo, Immediate, Mailbox, Relaxed},
@@ -120,6 +147,10 @@ fn main() {
     let options = HalStateOptions {
         pm_order: vec![Mailbox, Fifo, Relaxed, Immediate],
         ca_order: vec![Opaque, Inherit, PreMultiplied, PostMultiplied],
+        shaders: &[
+            (shaderc::ShaderKind::Vertex, VERTEX_SOURCE.to_string()),
+            (shaderc::ShaderKind::Vertex, FRAGMENT_SOURCE.to_string()),
+        ]
     };
     let mut winit_state = WinitState::default();
 
