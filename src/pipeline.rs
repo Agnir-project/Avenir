@@ -58,20 +58,21 @@ impl<B: Backend<Device = D>, D: Device<B>> ShaderEntry<B, D> {
 }
 
 fn vec_shader_entry_into_graphicset<'a, B: Backend<Device = D>, D: Device<B>>(
-    from: &'a [ShaderEntry<B, D>],
+    from: &'a [ShaderEntry<B, D>]
 ) -> Result<GraphicsShaderSet<'a, B>, &'static str> {
-    let vertex_idx = from
+    let vertex = from
         .iter()
         .position(|elem| elem.shader_type == ShaderKind::Vertex)
+        .map(|e| from[e].compute_entry())
         .ok_or("No vertex shader found.")?;
-
+    
     let fragment = from
         .iter()
         .position(|elem| elem.shader_type == ShaderKind::Fragment)
         .map(|e| from[e].compute_entry());
 
     Ok(GraphicsShaderSet {
-        vertex: from[vertex_idx].compute_entry(),
+        vertex: vertex,
         hull: None,
         domain: None,
         geometry: None,

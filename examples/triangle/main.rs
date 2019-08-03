@@ -148,7 +148,7 @@ fn main() {
         pm_order: vec![Mailbox, Fifo, Relaxed, Immediate],
         ca_order: vec![Opaque, Inherit, PreMultiplied, PostMultiplied],
         shaders: &[
-            (shaderc::ShaderKind::Vertex, VERTEX_SOURCE.to_string()),
+            (shaderc::ShaderKind::Vertex, render_lib::shader_utils::DEFAULT_VERTEX_SOURCE.to_string()),
             (shaderc::ShaderKind::Fragment, FRAGMENT_SOURCE.to_string()),
         ]
     };

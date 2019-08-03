@@ -8,6 +8,11 @@ pub struct ShaderUtils<B: Backend<Device = D>, D: Device<B>> {
     _device: PhantomData<D>,
 }
 
+pub const DEFAULT_VERTEX_SOURCE: &str = "
+#version 450
+void main() {
+}";
+
 impl<B, D> ShaderUtils<B, D>
 where
     B: Backend<Device = D>,
@@ -53,4 +58,5 @@ where
         let artifact = Self::source_to_artifact(compiler, kind, source, entry)?;
         Self::artifact_to_module(device, artifact)
     }
+
 }
