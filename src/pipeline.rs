@@ -324,7 +324,7 @@ where
         )?;
 
         self.shader_entries
-            .push(ShaderEntry::new(module, ShaderKind::Vertex));
+            .push(ShaderEntry::new(module, shader_source.0));
         Ok(self)
     }
 }

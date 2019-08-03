@@ -149,7 +149,7 @@ fn main() {
         ca_order: vec![Opaque, Inherit, PreMultiplied, PostMultiplied],
         shaders: &[
             (shaderc::ShaderKind::Vertex, VERTEX_SOURCE.to_string()),
-            (shaderc::ShaderKind::Vertex, FRAGMENT_SOURCE.to_string()),
+            (shaderc::ShaderKind::Fragment, FRAGMENT_SOURCE.to_string()),
         ]
     };
     let mut winit_state = WinitState::default();
