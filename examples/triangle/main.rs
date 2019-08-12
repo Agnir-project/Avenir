@@ -148,7 +148,7 @@ fn main() {
         pm_order: vec![Mailbox, Fifo, Relaxed, Immediate],
         ca_order: vec![Opaque, Inherit, PreMultiplied, PostMultiplied],
         shaders: &[
-            (shaderc::ShaderKind::Vertex, render_lib::shader_utils::DEFAULT_VERTEX_SOURCE.to_string()),
+            (shaderc::ShaderKind::Vertex, VERTEX_SOURCE.to_string()),
             (shaderc::ShaderKind::Fragment, FRAGMENT_SOURCE.to_string()),
         ]
     };
@@ -158,6 +158,11 @@ fn main() {
         Ok(state) => state,
         Err(e) => panic!(e),
     };
+
+    const F32_XY_RGB_TRIANGLE: usize = std::mem::size_of::<f32>() * (2 + 3) * 3;
+
+    hal_state.set_buffer_bundle(F32_XY_RGB_TRIANGLE).unwrap();
+
     let (frame_width, frame_height) = winit_state
         .window
         .get_inner_size()
@@ -181,7 +186,10 @@ fn main() {
             debug!("Auto-restarting HalState...");
             drop(hal_state);
             hal_state = match HalState::new(&winit_state.window, &options) {
-                Ok(state) => state,
+                Ok(mut state) => {
+                    state.set_buffer_bundle(F32_XY_RGB_TRIANGLE).unwrap();
+                    state
+                },
                 Err(e) => panic!(e),
             };
         }

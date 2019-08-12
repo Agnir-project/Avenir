@@ -35,7 +35,7 @@ use winit::Window;
 pub struct HalStateOptions<'a> {
     pub pm_order: Vec<PresentMode>,
     pub ca_order: Vec<CompositeAlpha>,
-    pub shaders: &'a [(shaderc::ShaderKind, String)]
+    pub shaders: &'a [(shaderc::ShaderKind, String)],
 }
 
 pub type HalState = GenericHalState<back::Backend, back::Device, back::Instance>;
@@ -55,7 +55,7 @@ pub struct GenericHalState<B: Backend<Device = D>, D: Device<B>, I: Instance<Bac
     queue_group: QueueGroup<B, Graphics>,
     swapchain: ManuallyDrop<B::Swapchain>,
     device: ManuallyDrop<D>,
-    vertices: BufferBundle<B, D>,
+    vertices: Option<BufferBundle<B, D>>,
     pipeline: ManuallyDrop<Pipeline<B, D>>,
     _adapter: Adapter<B>,
     _surface: B::Surface,
@@ -263,13 +263,12 @@ where
             pipeline_builder = pipeline_builder.with_error(&item)?;
         }
         let pipeline = pipeline_builder.build()?;
-        const F32_XY_RGB_TRIANGLE: usize = size_of::<f32>() * (2 + 3) * 3;
-        let vertices = BufferBundle::new(
-            &adapter,
-            &device,
-            F32_XY_RGB_TRIANGLE,
-            buffer::Usage::VERTEX,
-        )?;
+        //let vertices = BufferBundle::new(
+        //&adapter,
+        //&device,
+        //F32_XY_RGB_TRIANGLE,
+        //buffer::Usage::VERTEX,
+        //)?;
         Ok(Self {
             _instance: ManuallyDrop::new(instance),
             _surface: surface,
@@ -288,9 +287,20 @@ where
             in_flight_fences,
             frames_in_flight,
             current_frame: 0,
-            vertices,
+            vertices: None,
             pipeline: ManuallyDrop::new(pipeline),
         })
+    }
+
+    pub fn set_buffer_bundle(&mut self, size: usize) -> Result<(), &'static str> {
+        self.vertices = Some(BufferBundle::new(
+            &self._adapter,
+            &*self.device,
+            size,
+            buffer::Usage::VERTEX,
+        )?);
+
+        Ok(())
     }
 
     pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<(), &'static str> {
@@ -320,9 +330,11 @@ where
 
         // WRITE THE TRIANGLE DATA
         unsafe {
+            let vertices = self.vertices.as_ref().ok_or("Cannot find buffer bundle")?;
+
             let mut data_target = self
                 .device
-                .acquire_mapping_writer(&self.vertices.memory, 0..self.vertices.requirements.size)
+                .acquire_mapping_writer(&vertices.memory, 0..vertices.requirements.size)
                 .map_err(|_| "Failed to acquire a memory writer!")?;
             let points = triangle.vertex_attributes();
             data_target[..points.len()].copy_from_slice(&points);
@@ -333,6 +345,8 @@ where
 
         // RECORD COMMANDS
         unsafe {
+            let vertices = self.vertices.as_ref().ok_or("Cannot find buffer bundle.")?;
+
             let buffer = &mut self.command_buffers[i_usize];
             const TRIANGLE_CLEAR: [ClearValue; 1] =
                 [ClearValue::Color(ClearColor::Float([0.1, 0.2, 0.3, 1.0]))];
@@ -345,8 +359,9 @@ where
                     TRIANGLE_CLEAR.iter(),
                 );
                 encoder.bind_graphics_pipeline(&self.pipeline.graphics_pipeline);
+
                 // Here we must force the Deref impl of ManuallyDrop to play nice.
-                let buffer_ref: &B::Buffer = &self.vertices.buffer;
+                let buffer_ref: &B::Buffer = &vertices.buffer;
                 let buffers: ArrayVec<[_; 1]> = [(buffer_ref, 0)].into();
                 encoder.bind_vertex_buffers(0, buffers);
                 encoder.draw(0..3, 0..1);
