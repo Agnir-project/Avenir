@@ -16,6 +16,7 @@ use gfx_hal::pso::Rasterizer;
 use gfx_hal::pso::ShaderStageFlags;
 use gfx_hal::pso::Specialization;
 use gfx_hal::pso::VertexBufferDesc;
+use gfx_hal::Primitive;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -262,6 +263,17 @@ where
 {
     fn with(mut self, data: PipelineCreationFlags) -> Self {
         self.pipeline_creation_flags = data;
+        self
+    }
+}
+
+impl<'a, B, D> With<Primitive> for PipelineBuilder<'a, B, D>
+where
+    B: Backend<Device = D>,
+    D: Device<B>,
+{
+    fn with(mut self, data: Primitive) -> Self {
+        self.input_assembler_desc = Some(InputAssemblerDesc::new(data));
         self
     }
 }
