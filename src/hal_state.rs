@@ -36,6 +36,7 @@ pub struct HalStateOptions<'a> {
     pub pm_order: Vec<PresentMode>,
     pub ca_order: Vec<CompositeAlpha>,
     pub shaders: &'a [(shaderc::ShaderKind, String)],
+    pub primitive: Primitive,
 }
 
 pub type HalState = GenericHalState<back::Backend, back::Device, back::Instance>;
@@ -226,7 +227,7 @@ where
                     offset: (std::mem::size_of::<f32>() * 2) as ElemOffset,
                 },
             })
-            .with(InputAssemblerDesc::new(Primitive::TriangleList))
+            .with(opt.primitive)
             .with(VertexBufferDesc {
                 binding: 0,
                 stride: (std::mem::size_of::<f32>() * 5) as u32,
