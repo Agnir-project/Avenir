@@ -102,8 +102,23 @@ where
     D: Device<B>,
     I: Instance<Backend = B>,
 {
-
     /// initialize the `GenericHalState`
+    /// This is a verty important function that may in a near future be splitted into smaller ones.
+    /// * We pick an `adapter` from the `instance` given in parameters.
+    /// * We get `device` and `queue_group` from the adapter and the surface.
+    /// * We get all informations needed from the adapter.
+    /// * We get the `swapchain` and the `backbuffer` from the `device`, the `surface` and a `SwapchainConfig` that let we fill with previously gathered informations.
+    /// * We get the `render_pass` from `device`.
+    /// * We create `semaphore` and `fences` necessary to pipeline synchronisation.
+    /// * We create `image_view` from `backbuffer`.
+    /// * We create `framebuffers` from `image_view`.
+    /// * We create a basic `command_pool` for `queue_group`.
+    /// * For each `framebuffer` in `framebuffers` we create a `command_buffer` that we put in `command_buffers`
+    /// * We setup some important blending informations.
+    /// * We build the `Pipeline` with a `PipelineBuilder`.
+    /// * We append all shaders given in `HalStateOptions::shaders` to the `PipelineBuilder`.
+    /// * We build the `Pipeline`
+    /// * We create the `GenericHalState` from all the previously created datas.
     fn init(
         window: &Window,
         instance: I,
@@ -320,6 +335,7 @@ where
         })
     }
 
+    /// Set a buffer bundle.
     pub fn set_buffer_bundle(&mut self, size: usize) -> Result<(), &'static str> {
         self.vertices = Some(BufferBundle::new(
             &self._adapter,
@@ -331,6 +347,8 @@ where
         Ok(())
     }
 
+    /// Draw a a given triangle.
+    /// It's a big function again and it will certainly be splitted or reworked.
     pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<(), &'static str> {
         // SETUP FOR THIS FRAME
         let image_available = &self.image_available_semaphores[self.current_frame];
