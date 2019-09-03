@@ -1,3 +1,8 @@
+//!
+//! HalState module
+//! `HalState` is the generic instance of gfx-hal.
+//!
+
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
@@ -32,15 +37,33 @@ use gfx_hal::Primitive;
 
 use winit::Window;
 
+/// HalStateOptions is needed by the `HalState::new` function.
+/// It initialize the Generic HalState with all the needed informations.
+/// (For now it's simple. It may become really heavy in a near future.)
 pub struct HalStateOptions<'a> {
+    /// Order of the presentation mode.
     pub pm_order: Vec<PresentMode>,
+
+    /// Order of the CompositeAlpha
     pub ca_order: Vec<CompositeAlpha>,
+    
+    /// A slice of shader.
     pub shaders: &'a [(shaderc::ShaderKind, String)],
+
+    /// A drawing primitive.
     pub primitive: Primitive,
 }
 
+/// HalState is an alias of GenericHalState<B, D, I>.
 pub type HalState = GenericHalState<back::Backend, back::Device, back::Instance>;
 
+/// It is the main data-structure.
+/// It contain every pieces of information needed to handle a simple draw.
+/// The `GenericHalState` contain three Templated type. `Backend<D>`, `Device<B>`, `Instance<B>`.
+/// The `Backend` specifies ether metal-api, vulkan-api, blank-api, dx12-api, opengl-api.
+/// Thanks to gfx-hal We are fully cross platform.
+/// The `Device` specifies the software representation of an hardware entity.
+/// The `Instance` specifies the cross platform analog of the `VkInstance`.
 pub struct GenericHalState<B: Backend<Device = D>, D: Device<B>, I: Instance<Backend = B>> {
     current_frame: usize,
     frames_in_flight: u32,
@@ -64,6 +87,8 @@ pub struct GenericHalState<B: Backend<Device = D>, D: Device<B>, I: Instance<Bac
 }
 
 impl HalState {
+
+    /// Create a new HalState and initialize it.
     pub fn new(window: &Window, opt: &HalStateOptions) -> Result<Self, &'static str> {
         let instance = back::Instance::create("HalState", 1);
         let surface = instance.create_surface(&window);
@@ -77,6 +102,23 @@ where
     D: Device<B>,
     I: Instance<Backend = B>,
 {
+    /// initialize the `GenericHalState`
+    /// This is a verty important function that may in a near future be splitted into smaller ones.
+    /// * We pick an `adapter` from the `instance` given in parameters.
+    /// * We get `device` and `queue_group` from the adapter and the surface.
+    /// * We get all informations needed from the adapter.
+    /// * We get the `swapchain` and the `backbuffer` from the `device`, the `surface` and a `SwapchainConfig` that let we fill with previously gathered informations.
+    /// * We get the `render_pass` from `device`.
+    /// * We create `semaphore` and `fences` necessary to pipeline synchronisation.
+    /// * We create `image_view` from `backbuffer`.
+    /// * We create `framebuffers` from `image_view`.
+    /// * We create a basic `command_pool` for `queue_group`.
+    /// * For each `framebuffer` in `framebuffers` we create a `command_buffer` that we put in `command_buffers`
+    /// * We setup some important blending informations.
+    /// * We build the `Pipeline` with a `PipelineBuilder`.
+    /// * We append all shaders given in `HalStateOptions::shaders` to the `PipelineBuilder`.
+    /// * We build the `Pipeline`
+    /// * We create the `GenericHalState` from all the previously created datas.
     fn init(
         window: &Window,
         instance: I,
@@ -293,6 +335,7 @@ where
         })
     }
 
+    /// Set a buffer bundle.
     pub fn set_buffer_bundle(&mut self, size: usize) -> Result<(), &'static str> {
         self.vertices = Some(BufferBundle::new(
             &self._adapter,
@@ -304,6 +347,8 @@ where
         Ok(())
     }
 
+    /// Draw a a given triangle.
+    /// It's a big function again and it will certainly be splitted or reworked.
     pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<(), &'static str> {
         // SETUP FOR THIS FRAME
         let image_available = &self.image_available_semaphores[self.current_frame];
