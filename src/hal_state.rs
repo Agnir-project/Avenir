@@ -16,7 +16,7 @@ use gfx_hal::{
     pso::*,
     queue::{QueueGroup, Submission},
     window::{
-        CompositeAlpha, PresentMode, Surface, Swapchain, SwapchainConfig,
+        CompositeAlpha, PresentMode, Surface, Swapchain,
     },
     Backend, Graphics, Instance,
 };
@@ -35,6 +35,7 @@ use crate::utils::{Build, With, WithError};
 use gfx_hal::Primitive;
 
 use winit::Window;
+use gfx_hal::window::Suboptimal;
 
 /// HalStateOptions is needed by the `HalState::new` function.
 /// It initialize the Generic HalState with all the needed informations.
@@ -135,25 +136,13 @@ where
         };
         let format = GfxUtils::<B, D, I>::get_format(&adapter, &surface)?;
         let extent = GfxUtils::<B, D, I>::get_extent(&adapter, &surface, window)?;
-        let image_usage = GfxUtils::<B, D, I>::get_image_usage(&adapter, &surface)?;
-        let present_mode =
-            GfxUtils::<B, D, I>::get_present_mode(&adapter, &surface, &opt.pm_order)?;
-        let composite_alpha =
-            GfxUtils::<B, D, I>::get_composite_alpha(&adapter, &surface, &opt.ca_order)?;
-        let frames_in_flight =
-            GfxUtils::<B, D, I>::get_image_count(&adapter, &surface, present_mode);
+        let present_mode = GfxUtils::<B, D, I>::get_present_mode(&adapter, &surface, &opt.pm_order)?;
+        let frames_in_flight = GfxUtils::<B, D, I>::get_image_count(&adapter, &surface, present_mode);
         let (swapchain, backbuffer) = GfxUtils::<B, D, I>::get_swapchain(
+            &adapter,
             &device,
             &mut surface,
-            SwapchainConfig {
-                present_mode,
-                composite_alpha,
-                format,
-                extent,
-                image_count: frames_in_flight,
-                image_layers: 1,
-                image_usage,
-            },
+            &window
         )?;
         let render_pass = GfxUtils::<B, D, I>::get_render_pass(format, &device)?;
         let (image_available_semaphores, render_finished_semaphores, in_flight_fences) = {
@@ -238,7 +227,7 @@ where
             .iter()
             .map(|_| command_pool.acquire_command_buffer())
             .collect();
-        let blend_state = BlendState::On {
+        let blend_state = gfx_hal::pso::BlendState::On {
             color: BlendOp::Add {
                 src: Factor::One,
                 dst: Factor::Zero,
@@ -352,7 +341,7 @@ where
 
     /// Draw a a given triangle.
     /// It's a big function again and it will certainly be splitted or reworked.
-    pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<(), &'static str> {
+    pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<Option<Suboptimal>, &'static str> {
         // SETUP FOR THIS FRAME
         let image_available = &self.image_available_semaphores[self.current_frame];
         let render_finished = &self.render_finished_semaphores[self.current_frame];
@@ -364,7 +353,7 @@ where
                 .swapchain
                 .acquire_image(core::u64::MAX, Some(image_available), None)
                 .map_err(|_| "Couldn't acquire an image from the swapchain!")?;
-            (image_index, image_index.0 as usize)
+            (image_index.0, image_index.0 as usize)
         };
 
         let flight_fence = &self.in_flight_fences[i_usize];
