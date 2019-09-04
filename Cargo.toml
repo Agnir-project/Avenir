@@ -16,20 +16,20 @@ vulkan = ["gfx-backend-vulkan"]
 winit = "0.18"
 log = "0.4.0"
 arrayvec = "0.4"
-gfx-hal = "0.1"
+gfx-hal = "0.3.1"
 simple_logger = "1.0"
 shaderc = "0.5"
 
 [dependencies.gfx-backend-vulkan]
-version = "0.1"
+version = "0.3.3"
 optional = true
 
 [target.'cfg(target_os = "macos")'.dependencies.gfx-backend-metal]
-version = "0.1"
+version = "0.3.2"
 optional = true
 
 [target.'cfg(windows)'.dependencies.gfx-backend-dx12]
-version = "0.1"
+version = "0.3.2"
 optional = true
 
 [[example]]
