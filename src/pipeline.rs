@@ -21,8 +21,6 @@ use gfx_hal::Primitive;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::rc::Rc;
-
 use crate::shader_utils::ShaderUtils;
 use crate::utils::{Build, With, WithError};
 use gfx_hal::window::Extent2D;

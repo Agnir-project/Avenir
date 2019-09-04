@@ -43,7 +43,7 @@ where
     ) -> Result<B::ShaderModule, &'static str> {
         Ok(unsafe {
             device
-                .create_shader_module(artifact.as_binary_u8())
+                .create_shader_module(artifact.as_binary())
                 .map_err(|_| "Couldn't make the vertex module")?
         })
     }

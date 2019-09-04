@@ -25,7 +25,6 @@ use std::mem::ManuallyDrop;
 
 use crate::Triangle;
 use arrayvec::ArrayVec;
-use core::mem::size_of;
 use gfx_hal::buffer;
 
 use crate::back;
