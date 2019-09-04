@@ -16,7 +16,7 @@ use gfx_hal::{
     pso::*,
     queue::{QueueGroup, Submission},
     window::{
-        Backbuffer, CompositeAlpha, FrameSync, PresentMode, Surface, Swapchain, SwapchainConfig,
+        CompositeAlpha, PresentMode, Surface, Swapchain, SwapchainConfig,
     },
     Backend, Graphics, Instance,
 };
@@ -127,12 +127,11 @@ where
         let adapter = GfxUtils::pick_adapter(&instance, &surface)?;
         let (mut device, queue_group) = GfxUtils::<B, D, I>::get_device(&adapter, &surface)?;
         {
-            let (caps, available_formats, available_modes, composite_alphas) =
+            let (caps, available_formats, available_modes) =
                 surface.compatibility(&adapter.physical_device);
             info!("{:?}", caps);
             info!("Available Formats: {:?}", available_formats);
             info!("Available Present Modes: {:?}", available_modes);
-            info!("Composite Alphas: {:?}", composite_alphas);
         };
         let format = GfxUtils::<B, D, I>::get_format(&adapter, &surface)?;
         let extent = GfxUtils::<B, D, I>::get_extent(&adapter, &surface, window)?;
@@ -255,7 +254,7 @@ where
                 location: 0,
                 binding: 0,
                 element: Element {
-                    format: Format::Rg32Float,
+                    format: Format::Rg32Sfloat,
                     offset: 0,
                 },
             })
@@ -264,7 +263,7 @@ where
                 location: 1,
                 binding: 0,
                 element: Element {
-                    format: Format::Rgb32Float,
+                    format: Format::Rgb32Sfloat,
                     offset: (std::mem::size_of::<f32>() * 2) as ElemOffset,
                 },
             })
@@ -272,7 +271,7 @@ where
             .with(VertexBufferDesc {
                 binding: 0,
                 stride: (std::mem::size_of::<f32>() * 5) as u32,
-                rate: 0,
+                rate: VertexInputRate::Instance(0),
             })
             .with(Rasterizer {
                 depth_clamping: false,
@@ -289,7 +288,12 @@ where
             })
             .with(BlendDesc {
                 logic_op: Some(LogicOp::Copy),
-                targets: vec![ColorBlendDesc(ColorMask::ALL, blend_state)],
+                targets: vec![
+                    ColorBlendDesc {
+                        mask: ColorMask::ALL,
+                        blend: blend_state
+                    }
+                ],
             })
             .with(BakedStates {
                 viewport: Some(Viewport {
@@ -358,9 +362,9 @@ where
         let (i_u32, i_usize) = unsafe {
             let image_index = self
                 .swapchain
-                .acquire_image(core::u64::MAX, FrameSync::Semaphore(image_available))
+                .acquire_image(core::u64::MAX, Some(image_available), None)
                 .map_err(|_| "Couldn't acquire an image from the swapchain!")?;
-            (image_index, image_index as usize)
+            (image_index, image_index.0 as usize)
         };
 
         let flight_fence = &self.in_flight_fences[i_usize];
@@ -394,7 +398,7 @@ where
 
             let buffer = &mut self.command_buffers[i_usize];
             const TRIANGLE_CLEAR: [ClearValue; 1] =
-                [ClearValue::Color(ClearColor::Float([0.1, 0.2, 0.3, 1.0]))];
+                [ClearValue::Color(ClearColor::Sfloat([0.1, 0.2, 0.3, 1.0]))];
             buffer.begin(false);
             {
                 let mut encoder = buffer.begin_render_pass_inline(

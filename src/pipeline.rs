@@ -1,5 +1,5 @@
 use gfx_hal::pass::Subpass;
-use gfx_hal::pso::AttributeDesc;
+use gfx_hal::pso::{AttributeDesc, SpecializationConstant};
 use gfx_hal::pso::BakedStates;
 use gfx_hal::pso::BasePipeline;
 use gfx_hal::pso::BlendDesc;
@@ -16,6 +16,7 @@ use gfx_hal::pso::Rasterizer;
 use gfx_hal::pso::ShaderStageFlags;
 use gfx_hal::pso::Specialization;
 use gfx_hal::pso::VertexBufferDesc;
+use gfx_hal::pso::DescriptorPoolCreateFlags;
 use gfx_hal::Primitive;
 
 #[allow(unused_imports)]
@@ -28,6 +29,7 @@ use gfx_hal::Backend;
 use gfx_hal::Device;
 
 use shaderc::ShaderKind;
+use std::borrow::Cow;
 
 pub struct ShaderEntry<B: Backend<Device = D>, D: Device<B>> {
     shader_module: B::ShaderModule,
@@ -49,8 +51,8 @@ impl<B: Backend<Device = D>, D: Device<B>> ShaderEntry<B, D> {
             entry: "main",
             module: &self.shader_module,
             specialization: Specialization {
-                constants: &[],
-                data: &[],
+                constants: Cow::<[SpecializationConstant]>::from(vec![]),
+                data: Cow::<[u8]>::from(vec![]),
             },
         }
     }
@@ -155,7 +157,7 @@ where
         }];
         let mut descriptor_pool = unsafe {
             self.device
-                .create_descriptor_pool(1, &self.descriptor_range_desc[..])
+                .create_descriptor_pool(1, &self.descriptor_range_desc[..], DescriptorPoolCreateFlags::empty())
                 .map_err(|_| "Couldn't create a descriptor pool!")?
         };
         let descriptor_set = unsafe {

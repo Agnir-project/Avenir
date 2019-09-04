@@ -117,7 +117,7 @@ where
         surface: &B::Surface,
         preferred_modes: &Vec<PresentMode>,
     ) -> Result<PresentMode, &'static str> {
-        let (_, _, present_modes, _) = surface.compatibility(&adapter.physical_device);
+        let (_, _, present_modes) = surface.compatibility(&adapter.physical_device);
         Ok(preferred_modes
             .iter()
             .cloned()
@@ -139,7 +139,7 @@ where
     }
 
     pub fn get_format(adapter: &Adapter<B>, surface: &B::Surface) -> Result<Format, &'static str> {
-        let (_, available_formats, _, _) = surface.compatibility(&adapter.physical_device);
+        let (_, available_formats, _) = surface.compatibility(&adapter.physical_device);
         Ok(match available_formats {
             None => Format::Rgba8Srgb,
             Some(formats) => match formats
@@ -161,7 +161,7 @@ where
         surface: &B::Surface,
         window: &Window,
     ) -> Result<Extent2D, &'static str> {
-        let (caps, _, _, _) = surface.compatibility(&adapter.physical_device);
+        let (caps, _, _) = surface.compatibility(&adapter.physical_device);
         let window_client_area = window
             .get_inner_size()
             .ok_or("Window doesn't exist!")?
@@ -181,7 +181,7 @@ where
         surface: &B::Surface,
         present_mode: PresentMode,
     ) -> u32 {
-        let (caps, _, _, _) = surface.compatibility(&adapter.physical_device);
+        let (caps, _, _) = surface.compatibility(&adapter.physical_device);
         if present_mode == PresentMode::Mailbox {
             (caps.image_count.end - 1).min(caps.image_count.start.max(3))
         } else {
@@ -193,7 +193,7 @@ where
         adapter: &Adapter<B>,
         surface: &B::Surface,
     ) -> Result<Usage, &'static str> {
-        let (caps, _, _, _) = surface.compatibility(&adapter.physical_device);
+        let (caps, _, _) = surface.compatibility(&adapter.physical_device);
         if caps.usage.contains(Usage::COLOR_ATTACHMENT) {
             Ok(Usage::COLOR_ATTACHMENT)
         } else {
@@ -205,12 +205,12 @@ where
         device: &D,
         surface: &mut B::Surface,
         config: SwapchainConfig,
-    ) -> Result<(B::Swapchain, Backbuffer<B>), &'static str> {
-        let (swapchain, backbuffer) = unsafe {
+    ) -> Result<(B::Swapchain, B::Image), &'static str> {
+        let (swapchain, image) = unsafe {
             device
                 .create_swapchain(surface, config, None)
                 .map_err(|_| "Failed to create the swapchain!")?
         };
-        Ok((swapchain, backbuffer))
+        Ok((swapchain, image))
     }
 }

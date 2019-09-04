@@ -18,7 +18,7 @@ log = "0.4.0"
 arrayvec = "0.4"
 gfx-hal = "0.3.1"
 simple_logger = "1.0"
-shaderc = "0.5"
+shaderc = "0.6.1"
 
 [dependencies.gfx-backend-vulkan]
 version = "0.3.3"
