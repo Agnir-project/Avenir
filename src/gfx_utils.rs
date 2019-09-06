@@ -5,7 +5,7 @@ use gfx_hal::{
     image::{Layout, Usage},
     pass::{Attachment, AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, SubpassDesc},
     queue::{family::QueueGroup, QueueFamily},
-    window::{Backbuffer, Extent2D, PresentMode, Surface, SwapchainConfig},
+    window::{Extent2D, PresentMode, Surface, SwapchainConfig},
     {Backend, Gpu, Graphics, Instance},
 };
 use gfx_hal::Features;
@@ -98,10 +98,13 @@ where
     ) -> Result<(D, QueueGroup<B, Graphics>), &'static str> {
         let queue_family = Self::get_queue_family(&adapter, &surface)?;
         let Gpu { device, mut queues } = unsafe {
+            let features = adapter.physical_device.features();
+
             adapter
                 .physical_device
-                .open(&[(&queue_family, &[1.0; 1])], Features::all())
-                .map_err(|_| "Couldn't open the PhysicalDevice!")?
+                .open(&[(&queue_family, &[1.0; 1])], features)
+                .unwrap()
+                //.map_err(|_| "Couldn't open the PhysicalDevice!")?
         };
         let queue_group = queues
             .take::<Graphics>(queue_family.id())
@@ -166,7 +169,7 @@ where
         let (caps, _, _) = surface.compatibility(&adapter.physical_device);
         let window_client_area = window
             .get_inner_size()
-            .ok_or("Window doesn't exist!")?
+            .expect("Cannot get window size.")
             .to_physical(window.get_hidpi_factor());
         Ok(Extent2D {
             width: caps.extents.end().width.min(window_client_area.width as u32),

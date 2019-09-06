@@ -22,14 +22,15 @@ impl Triangle {
     }
 }
 
+#[cfg(feature = "vulkan")]
+pub use gfx_backend_vulkan as back;
+
 #[cfg(feature = "dx12")]
 pub use gfx_backend_dx12 as back;
 
 #[cfg(feature = "metal")]
 pub use gfx_backend_metal as back;
 
-#[cfg(feature = "vulkan")]
-pub use gfx_backend_vulkan as back;
 
 pub mod buffer_bundle;
 pub mod gfx_utils;

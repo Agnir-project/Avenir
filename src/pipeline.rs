@@ -59,14 +59,14 @@ impl<B: Backend<Device = D>, D: Device<B>> ShaderEntry<B, D> {
 }
 
 fn vec_shader_entry_into_graphicset<'a, B: Backend<Device = D>, D: Device<B>>(
-    from: &'a [ShaderEntry<B, D>]
+    from: &'a [ShaderEntry<B, D>],
 ) -> Result<GraphicsShaderSet<'a, B>, &'static str> {
     let vertex = from
         .iter()
         .position(|elem| elem.shader_type == ShaderKind::Vertex)
         .map(|e| from[e].compute_entry())
         .ok_or("No vertex shader found.")?;
-    
+
     let fragment = from
         .iter()
         .position(|elem| elem.shader_type == ShaderKind::Fragment)
@@ -138,7 +138,6 @@ where
             pipeline_creation_flags: PipelineCreationFlags::empty(),
         })
     }
-
 }
 
 impl<'a, B, D> Build<Result<Pipeline<B, D>, &'static str>> for PipelineBuilder<'a, B, D>
@@ -327,7 +326,10 @@ where
     B: Backend<Device = D>,
     D: Device<B>,
 {
-    fn with_error(mut self, shader_source: &(shaderc::ShaderKind, String)) -> Result<Self, &'static str> {
+    fn with_error(
+        mut self,
+        shader_source: &(shaderc::ShaderKind, String),
+    ) -> Result<Self, &'static str> {
         let module = ShaderUtils::<B, D>::source_to_module(
             &self.device,
             &mut self.compiler,

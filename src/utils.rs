@@ -4,9 +4,8 @@ pub trait With<T> {
 
 pub trait WithError<T, E>
 where
-    Self: std::marker::Sized
+    Self: std::marker::Sized,
 {
-
     fn with_error(self, data: T) -> Result<Self, E>;
 }
 

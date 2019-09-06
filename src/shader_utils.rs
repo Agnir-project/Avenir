@@ -18,7 +18,6 @@ where
     B: Backend<Device = D>,
     D: Device<B>,
 {
-
     pub fn source_to_artifact(
         compiler: &mut Compiler,
         kind: shaderc::ShaderKind,
@@ -26,20 +25,13 @@ where
         entry: &str,
     ) -> Result<shaderc::CompilationArtifact, &'static str> {
         Ok(compiler
-            .compile_into_spirv(
-                source,
-                kind,
-                "vertex.vert",
-                entry,
-                None,
-            )
-            .map_err(|_| "Couldn't compile vertex shader!")?
-        )
+            .compile_into_spirv(source, kind, "vertex.vert", entry, None)
+            .map_err(|_| "Couldn't compile vertex shader!")?)
     }
 
     pub fn artifact_to_module(
         device: &D,
-        artifact: shaderc::CompilationArtifact
+        artifact: shaderc::CompilationArtifact,
     ) -> Result<B::ShaderModule, &'static str> {
         Ok(unsafe {
             device
@@ -58,5 +50,4 @@ where
         let artifact = Self::source_to_artifact(compiler, kind, source, entry)?;
         Self::artifact_to_module(device, artifact)
     }
-
 }

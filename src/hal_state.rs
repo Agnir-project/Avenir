@@ -44,9 +44,6 @@ pub struct HalStateOptions<'a> {
     /// Order of the presentation mode.
     pub pm_order: Vec<PresentMode>,
 
-    /// Order of the CompositeAlpha
-    pub ca_order: Vec<CompositeAlpha>,
-    
     /// A slice of shader.
     pub shaders: &'a [(shaderc::ShaderKind, String)],
 
@@ -91,7 +88,7 @@ impl HalState {
     /// Create a new HalState and initialize it.
     pub fn new(window: &Window, opt: &HalStateOptions) -> Result<Self, &'static str> {
         let instance = back::Instance::create("HalState", 1);
-        let surface = instance.create_surface(&window);
+        let surface = instance.create_surface(window);
         HalState::init(&window, instance, surface, opt)
     }
 }
@@ -179,8 +176,7 @@ where
                 in_flight_fences,
             )
         };
-        let image_views: Vec<_> = match backbuffer {
-            Backbuffer::Images(images) => images
+        let image_views = backbuffer
                 .into_iter()
                 .map(|image| unsafe {
                     device
@@ -197,9 +193,8 @@ where
                         )
                         .map_err(|_| "Couldn't create the image_view for the image!")
                 })
-                .collect::<Result<Vec<_>, &str>>()?,
-            Backbuffer::Framebuffer(_) => unimplemented!("Can't handle framebuffer backbuffer!"),
-        };
+                .collect::<Result<Vec<_>, &str>>()?;
+
         let framebuffers: Vec<B::Framebuffer> = {
             image_views
                 .iter()
@@ -227,7 +222,7 @@ where
             .iter()
             .map(|_| command_pool.acquire_command_buffer())
             .collect();
-        let blend_state = gfx_hal::pso::BlendState::On {
+        let blend_state = gfx_hal::pso::BlendState {
             color: BlendOp::Add {
                 src: Factor::One,
                 dst: Factor::Zero,
@@ -260,7 +255,7 @@ where
             .with(VertexBufferDesc {
                 binding: 0,
                 stride: (std::mem::size_of::<f32>() * 5) as u32,
-                rate: VertexInputRate::Instance(0),
+                rate: VertexInputRate::Instance(1),
             })
             .with(Rasterizer {
                 depth_clamping: false,
@@ -271,16 +266,16 @@ where
                 conservative: false,
             })
             .with(DepthStencilDesc {
-                depth: DepthTest::Off,
+                depth: None,
                 depth_bounds: false,
-                stencil: StencilTest::Off,
+                stencil: None,
             })
             .with(BlendDesc {
                 logic_op: Some(LogicOp::Copy),
                 targets: vec![
                     ColorBlendDesc {
                         mask: ColorMask::ALL,
-                        blend: blend_state
+                        blend: Some(blend_state),
                     }
                 ],
             })
