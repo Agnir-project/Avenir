@@ -5,9 +5,10 @@ use gfx_hal::{
     image::{Layout, Usage},
     pass::{Attachment, AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, SubpassDesc},
     queue::{family::QueueGroup, QueueFamily},
-    window::{Backbuffer, CompositeAlpha, Extent2D, PresentMode, Surface, SwapchainConfig},
+    window::{Extent2D, PresentMode, Surface, SwapchainConfig},
     {Backend, Gpu, Graphics, Instance},
 };
+use gfx_hal::Features;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::marker::PhantomData;
@@ -89,6 +90,7 @@ where
     /// This will fail if the device is not an actual GPU.
     /// It then tries to take ownership of the QueueGroup using the QueueFamily id.
     /// Ultimately, it returns both structures.
+    /// TODO: Change Features::all()
     ///
     pub fn get_device(
         adapter: &Adapter<B>,
@@ -96,10 +98,13 @@ where
     ) -> Result<(D, QueueGroup<B, Graphics>), &'static str> {
         let queue_family = Self::get_queue_family(&adapter, &surface)?;
         let Gpu { device, mut queues } = unsafe {
+            let features = adapter.physical_device.features();
+
             adapter
                 .physical_device
-                .open(&[(&queue_family, &[1.0; 1])])
-                .map_err(|_| "Couldn't open the PhysicalDevice!")?
+                .open(&[(&queue_family, &[1.0; 1])], features)
+                .unwrap()
+                //.map_err(|_| "Couldn't open the PhysicalDevice!")?
         };
         let queue_group = queues
             .take::<Graphics>(queue_family.id())
@@ -117,7 +122,7 @@ where
         surface: &B::Surface,
         preferred_modes: &Vec<PresentMode>,
     ) -> Result<PresentMode, &'static str> {
-        let (_, _, present_modes, _) = surface.compatibility(&adapter.physical_device);
+        let (_, _, present_modes) = surface.compatibility(&adapter.physical_device);
         Ok(preferred_modes
             .iter()
             .cloned()
@@ -125,21 +130,8 @@ where
             .ok_or("No PresentMode values specified!")?)
     }
 
-    pub fn get_composite_alpha(
-        adapter: &Adapter<B>,
-        surface: &B::Surface,
-        preferred_modes: &Vec<CompositeAlpha>,
-    ) -> Result<CompositeAlpha, &'static str> {
-        let (_, _, _, composite_alphas) = surface.compatibility(&adapter.physical_device);
-        Ok(preferred_modes
-            .iter()
-            .cloned()
-            .find(|ca| composite_alphas.contains(ca))
-            .ok_or("No CompositeAlpha values specified!")?)
-    }
-
     pub fn get_format(adapter: &Adapter<B>, surface: &B::Surface) -> Result<Format, &'static str> {
-        let (_, available_formats, _, _) = surface.compatibility(&adapter.physical_device);
+        let (_, available_formats, _) = surface.compatibility(&adapter.physical_device);
         Ok(match available_formats {
             None => Format::Rgba8Srgb,
             Some(formats) => match formats
@@ -156,44 +148,59 @@ where
         })
     }
 
-    pub fn get_extent(
-        adapter: &Adapter<B>,
-        surface: &B::Surface,
-        window: &Window,
-    ) -> Result<Extent2D, &'static str> {
-        let (caps, _, _, _) = surface.compatibility(&adapter.physical_device);
-        let window_client_area = window
-            .get_inner_size()
-            .ok_or("Window doesn't exist!")?
-            .to_physical(window.get_hidpi_factor());
-        Ok(Extent2D {
-            width: caps.extents.end.width.min(window_client_area.width as u32),
-            height: caps
-                .extents
-                .end
-                .height
-                .min(window_client_area.height as u32),
-        })
-    }
-
     pub fn get_image_count(
         adapter: &Adapter<B>,
         surface: &B::Surface,
         present_mode: PresentMode,
     ) -> u32 {
-        let (caps, _, _, _) = surface.compatibility(&adapter.physical_device);
+        let (caps, _, _) = surface.compatibility(&adapter.physical_device);
         if present_mode == PresentMode::Mailbox {
-            (caps.image_count.end - 1).min(caps.image_count.start.max(3))
+            (caps.image_count.end() - 1).min(*caps.image_count.start().max(&3))
         } else {
-            (caps.image_count.end - 1).min(caps.image_count.start.max(2))
+            (caps.image_count.end() - 1).min(*caps.image_count.start().max(&2))
         }
+    }
+
+    pub fn get_extent(
+        adapter: &Adapter<B>,
+        surface: &B::Surface,
+        window: &Window,
+    ) -> Result<Extent2D, &'static str> {
+        let (caps, _, _) = surface.compatibility(&adapter.physical_device);
+        let window_client_area = window
+            .get_inner_size()
+            .expect("Cannot get window size.")
+            .to_physical(window.get_hidpi_factor());
+        Ok(Extent2D {
+            width: caps.extents.end().width.min(window_client_area.width as u32),
+            height: caps
+                .extents
+                .end()
+                .height
+                .min(window_client_area.height as u32),
+        })
+    }
+
+    pub fn get_swapchain_config(
+        adapter: &Adapter<B>,
+        surface: &B::Surface,
+        window: &Window,
+    ) -> Result<SwapchainConfig, &'static str> {
+        let (caps, _, _) = surface.compatibility(&adapter.physical_device);
+        let extent = Self::get_extent(adapter, surface, window)?;
+        let format = Self::get_format(adapter, surface)?;
+        Ok(SwapchainConfig::from_caps(
+            &caps,
+            format,
+            extent,
+        ))
     }
 
     pub fn get_image_usage(
         adapter: &Adapter<B>,
         surface: &B::Surface,
     ) -> Result<Usage, &'static str> {
-        let (caps, _, _, _) = surface.compatibility(&adapter.physical_device);
+        let (caps, _, _) = surface.compatibility(&adapter.physical_device);
         if caps.usage.contains(Usage::COLOR_ATTACHMENT) {
             Ok(Usage::COLOR_ATTACHMENT)
         } else {
@@ -202,15 +209,17 @@ where
     }
 
     pub fn get_swapchain(
+        adapter: &Adapter<B>,
         device: &D,
         surface: &mut B::Surface,
-        config: SwapchainConfig,
-    ) -> Result<(B::Swapchain, Backbuffer<B>), &'static str> {
-        let (swapchain, backbuffer) = unsafe {
+        window: &Window,
+    ) -> Result<(B::Swapchain, Vec<B::Image>), &'static str> {
+        let config = Self::get_swapchain_config(adapter, surface, window)?;
+        let (swapchain, image) = unsafe {
             device
                 .create_swapchain(surface, config, None)
                 .map_err(|_| "Failed to create the swapchain!")?
         };
-        Ok((swapchain, backbuffer))
+        Ok((swapchain, image))
     }
 }

@@ -15,9 +15,7 @@ use gfx_hal::{
     pool::{CommandPool, CommandPoolCreateFlags},
     pso::*,
     queue::{QueueGroup, Submission},
-    window::{
-        Backbuffer, CompositeAlpha, FrameSync, PresentMode, Surface, Swapchain, SwapchainConfig,
-    },
+    window::{CompositeAlpha, PresentMode, Surface, Swapchain},
     Backend, Graphics, Instance,
 };
 
@@ -25,7 +23,6 @@ use std::mem::ManuallyDrop;
 
 use crate::Triangle;
 use arrayvec::ArrayVec;
-use core::mem::size_of;
 use gfx_hal::buffer;
 
 use crate::back;
@@ -35,6 +32,7 @@ use crate::pipeline::{Pipeline, PipelineBuilder};
 use crate::utils::{Build, With, WithError};
 use gfx_hal::Primitive;
 
+use gfx_hal::window::Suboptimal;
 use winit::Window;
 
 /// HalStateOptions is needed by the `HalState::new` function.
@@ -44,9 +42,6 @@ pub struct HalStateOptions<'a> {
     /// Order of the presentation mode.
     pub pm_order: Vec<PresentMode>,
 
-    /// Order of the CompositeAlpha
-    pub ca_order: Vec<CompositeAlpha>,
-    
     /// A slice of shader.
     pub shaders: &'a [(shaderc::ShaderKind, String)],
 
@@ -87,11 +82,10 @@ pub struct GenericHalState<B: Backend<Device = D>, D: Device<B>, I: Instance<Bac
 }
 
 impl HalState {
-
     /// Create a new HalState and initialize it.
     pub fn new(window: &Window, opt: &HalStateOptions) -> Result<Self, &'static str> {
         let instance = back::Instance::create("HalState", 1);
-        let surface = instance.create_surface(&window);
+        let surface = instance.create_surface(window);
         HalState::init(&window, instance, surface, opt)
     }
 }
@@ -126,37 +120,24 @@ where
         opt: &HalStateOptions,
     ) -> Result<Self, &'static str> {
         let adapter = GfxUtils::pick_adapter(&instance, &surface)?;
+
         let (mut device, queue_group) = GfxUtils::<B, D, I>::get_device(&adapter, &surface)?;
         {
-            let (caps, available_formats, available_modes, composite_alphas) =
+            let (caps, available_formats, available_modes) =
                 surface.compatibility(&adapter.physical_device);
             info!("{:?}", caps);
             info!("Available Formats: {:?}", available_formats);
             info!("Available Present Modes: {:?}", available_modes);
-            info!("Composite Alphas: {:?}", composite_alphas);
         };
+
         let format = GfxUtils::<B, D, I>::get_format(&adapter, &surface)?;
         let extent = GfxUtils::<B, D, I>::get_extent(&adapter, &surface, window)?;
-        let image_usage = GfxUtils::<B, D, I>::get_image_usage(&adapter, &surface)?;
         let present_mode =
             GfxUtils::<B, D, I>::get_present_mode(&adapter, &surface, &opt.pm_order)?;
-        let composite_alpha =
-            GfxUtils::<B, D, I>::get_composite_alpha(&adapter, &surface, &opt.ca_order)?;
         let frames_in_flight =
             GfxUtils::<B, D, I>::get_image_count(&adapter, &surface, present_mode);
-        let (swapchain, backbuffer) = GfxUtils::<B, D, I>::get_swapchain(
-            &device,
-            &mut surface,
-            SwapchainConfig {
-                present_mode,
-                composite_alpha,
-                format,
-                extent,
-                image_count: frames_in_flight,
-                image_layers: 1,
-                image_usage,
-            },
-        )?;
+        let (swapchain, backbuffer) =
+            GfxUtils::<B, D, I>::get_swapchain(&adapter, &device, &mut surface, &window)?;
         let render_pass = GfxUtils::<B, D, I>::get_render_pass(format, &device)?;
         let (image_available_semaphores, render_finished_semaphores, in_flight_fences) = {
             let in_flight_fences = ((0..frames_in_flight)
@@ -192,27 +173,25 @@ where
                 in_flight_fences,
             )
         };
-        let image_views: Vec<_> = match backbuffer {
-            Backbuffer::Images(images) => images
-                .into_iter()
-                .map(|image| unsafe {
-                    device
-                        .create_image_view(
-                            &image,
-                            ViewKind::D2,
-                            format,
-                            Swizzle::NO,
-                            SubresourceRange {
-                                aspects: Aspects::COLOR,
-                                levels: 0..1,
-                                layers: 0..1,
-                            },
-                        )
-                        .map_err(|_| "Couldn't create the image_view for the image!")
-                })
-                .collect::<Result<Vec<_>, &str>>()?,
-            Backbuffer::Framebuffer(_) => unimplemented!("Can't handle framebuffer backbuffer!"),
-        };
+        let image_views = backbuffer
+            .into_iter()
+            .map(|image| unsafe {
+                device
+                    .create_image_view(
+                        &image,
+                        ViewKind::D2,
+                        format,
+                        Swizzle::NO,
+                        SubresourceRange {
+                            aspects: Aspects::COLOR,
+                            levels: 0..1,
+                            layers: 0..1,
+                        },
+                    )
+                    .map_err(|_| "Couldn't create the image_view for the image!")
+            })
+            .collect::<Result<Vec<_>, &str>>()?;
+
         let framebuffers: Vec<B::Framebuffer> = {
             image_views
                 .iter()
@@ -240,7 +219,7 @@ where
             .iter()
             .map(|_| command_pool.acquire_command_buffer())
             .collect();
-        let blend_state = BlendState::On {
+        let blend_state = gfx_hal::pso::BlendState {
             color: BlendOp::Add {
                 src: Factor::One,
                 dst: Factor::Zero,
@@ -256,7 +235,7 @@ where
                 location: 0,
                 binding: 0,
                 element: Element {
-                    format: Format::Rg32Float,
+                    format: Format::Rg32Sfloat,
                     offset: 0,
                 },
             })
@@ -265,7 +244,7 @@ where
                 location: 1,
                 binding: 0,
                 element: Element {
-                    format: Format::Rgb32Float,
+                    format: Format::Rgb32Sfloat,
                     offset: (std::mem::size_of::<f32>() * 2) as ElemOffset,
                 },
             })
@@ -273,7 +252,7 @@ where
             .with(VertexBufferDesc {
                 binding: 0,
                 stride: (std::mem::size_of::<f32>() * 5) as u32,
-                rate: 0,
+                rate: VertexInputRate::Vertex,
             })
             .with(Rasterizer {
                 depth_clamping: false,
@@ -284,13 +263,16 @@ where
                 conservative: false,
             })
             .with(DepthStencilDesc {
-                depth: DepthTest::Off,
+                depth: None,
                 depth_bounds: false,
-                stencil: StencilTest::Off,
+                stencil: None,
             })
             .with(BlendDesc {
                 logic_op: Some(LogicOp::Copy),
-                targets: vec![ColorBlendDesc(ColorMask::ALL, blend_state)],
+                targets: vec![ColorBlendDesc {
+                    mask: ColorMask::ALL,
+                    blend: Some(blend_state),
+                }],
             })
             .with(BakedStates {
                 viewport: Some(Viewport {
@@ -349,7 +331,10 @@ where
 
     /// Draw a a given triangle.
     /// It's a big function again and it will certainly be splitted or reworked.
-    pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<(), &'static str> {
+    pub fn draw_triangle_frame(
+        &mut self,
+        triangle: Triangle,
+    ) -> Result<Option<Suboptimal>, &'static str> {
         // SETUP FOR THIS FRAME
         let image_available = &self.image_available_semaphores[self.current_frame];
         let render_finished = &self.render_finished_semaphores[self.current_frame];
@@ -359,9 +344,9 @@ where
         let (i_u32, i_usize) = unsafe {
             let image_index = self
                 .swapchain
-                .acquire_image(core::u64::MAX, FrameSync::Semaphore(image_available))
+                .acquire_image(core::u64::MAX, Some(image_available), None)
                 .map_err(|_| "Couldn't acquire an image from the swapchain!")?;
-            (image_index, image_index as usize)
+            (image_index.0, image_index.0 as usize)
         };
 
         let flight_fence = &self.in_flight_fences[i_usize];
@@ -395,7 +380,7 @@ where
 
             let buffer = &mut self.command_buffers[i_usize];
             const TRIANGLE_CLEAR: [ClearValue; 1] =
-                [ClearValue::Color(ClearColor::Float([0.1, 0.2, 0.3, 1.0]))];
+                [ClearValue::Color(ClearColor::Sfloat([0.1, 0.2, 0.3, 1.0]))];
             buffer.begin(false);
             {
                 let mut encoder = buffer.begin_render_pass_inline(

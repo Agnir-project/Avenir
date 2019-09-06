@@ -5,7 +5,6 @@ extern crate render_lib;
 extern crate simple_logger;
 extern crate winit;
 
-
 pub const VERTEX_SOURCE: &str = "#version 450
 layout (location = 0) in vec2 position;
 layout (location = 1) in vec3 color;
@@ -31,10 +30,10 @@ void main()
   color = vec4(frag_color,1.0);
 }";
 
-
 use gfx_hal::{
-    window::CompositeAlpha::{Inherit, Opaque, PostMultiplied, PreMultiplied},
+    window::CompositeAlpha,
     window::PresentMode::{Fifo, Immediate, Mailbox, Relaxed},
+    Primitive,
 };
 
 use render_lib::{hal_state::HalState, hal_state::HalStateOptions, Triangle};
@@ -129,7 +128,10 @@ impl Default for WinitState {
     }
 }
 
-fn do_the_render(hal_state: &mut HalState, local_state: &LocalState) -> Result<(), &'static str> {
+fn do_the_render(
+    hal_state: &mut HalState,
+    local_state: &LocalState,
+) -> Result<Option<gfx_hal::window::Suboptimal>, &'static str> {
     let x = ((local_state.mouse_x / local_state.frame_width) * 2.0) - 1.0;
     let y = ((local_state.mouse_y / local_state.frame_height) * 2.0) - 1.0;
     let triangle1 = Triangle {
@@ -146,11 +148,11 @@ fn main() {
 
     let options = HalStateOptions {
         pm_order: vec![Mailbox, Fifo, Relaxed, Immediate],
-        ca_order: vec![Opaque, Inherit, PreMultiplied, PostMultiplied],
         shaders: &[
             (shaderc::ShaderKind::Vertex, VERTEX_SOURCE.to_string()),
             (shaderc::ShaderKind::Fragment, FRAGMENT_SOURCE.to_string()),
-        ]
+        ],
+        primitive: gfx_hal::Primitive::TriangleList,
     };
     let mut winit_state = WinitState::default();
 
@@ -189,7 +191,7 @@ fn main() {
                 Ok(mut state) => {
                     state.set_buffer_bundle(F32_XY_RGB_TRIANGLE).unwrap();
                     state
-                },
+                }
                 Err(e) => panic!(e),
             };
         }

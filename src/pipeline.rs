@@ -1,5 +1,5 @@
 use gfx_hal::pass::Subpass;
-use gfx_hal::pso::AttributeDesc;
+use gfx_hal::pso::{AttributeDesc, SpecializationConstant};
 use gfx_hal::pso::BakedStates;
 use gfx_hal::pso::BasePipeline;
 use gfx_hal::pso::BlendDesc;
@@ -16,12 +16,11 @@ use gfx_hal::pso::Rasterizer;
 use gfx_hal::pso::ShaderStageFlags;
 use gfx_hal::pso::Specialization;
 use gfx_hal::pso::VertexBufferDesc;
+use gfx_hal::pso::DescriptorPoolCreateFlags;
 use gfx_hal::Primitive;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-
-use std::rc::Rc;
 
 use crate::shader_utils::ShaderUtils;
 use crate::utils::{Build, With, WithError};
@@ -30,6 +29,7 @@ use gfx_hal::Backend;
 use gfx_hal::Device;
 
 use shaderc::ShaderKind;
+use std::borrow::Cow;
 
 pub struct ShaderEntry<B: Backend<Device = D>, D: Device<B>> {
     shader_module: B::ShaderModule,
@@ -51,22 +51,22 @@ impl<B: Backend<Device = D>, D: Device<B>> ShaderEntry<B, D> {
             entry: "main",
             module: &self.shader_module,
             specialization: Specialization {
-                constants: &[],
-                data: &[],
+                constants: Cow::<[SpecializationConstant]>::from(vec![]),
+                data: Cow::<[u8]>::from(vec![]),
             },
         }
     }
 }
 
 fn vec_shader_entry_into_graphicset<'a, B: Backend<Device = D>, D: Device<B>>(
-    from: &'a [ShaderEntry<B, D>]
+    from: &'a [ShaderEntry<B, D>],
 ) -> Result<GraphicsShaderSet<'a, B>, &'static str> {
     let vertex = from
         .iter()
         .position(|elem| elem.shader_type == ShaderKind::Vertex)
         .map(|e| from[e].compute_entry())
         .ok_or("No vertex shader found.")?;
-    
+
     let fragment = from
         .iter()
         .position(|elem| elem.shader_type == ShaderKind::Fragment)
@@ -138,7 +138,6 @@ where
             pipeline_creation_flags: PipelineCreationFlags::empty(),
         })
     }
-
 }
 
 impl<'a, B, D> Build<Result<Pipeline<B, D>, &'static str>> for PipelineBuilder<'a, B, D>
@@ -157,7 +156,7 @@ where
         }];
         let mut descriptor_pool = unsafe {
             self.device
-                .create_descriptor_pool(1, &self.descriptor_range_desc[..])
+                .create_descriptor_pool(1, &self.descriptor_range_desc[..], DescriptorPoolCreateFlags::empty())
                 .map_err(|_| "Couldn't create a descriptor pool!")?
         };
         let descriptor_set = unsafe {
@@ -327,7 +326,10 @@ where
     B: Backend<Device = D>,
     D: Device<B>,
 {
-    fn with_error(mut self, shader_source: &(shaderc::ShaderKind, String)) -> Result<Self, &'static str> {
+    fn with_error(
+        mut self,
+        shader_source: &(shaderc::ShaderKind, String),
+    ) -> Result<Self, &'static str> {
         let module = ShaderUtils::<B, D>::source_to_module(
             &self.device,
             &mut self.compiler,
