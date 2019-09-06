@@ -15,9 +15,7 @@ use gfx_hal::{
     pool::{CommandPool, CommandPoolCreateFlags},
     pso::*,
     queue::{QueueGroup, Submission},
-    window::{
-        CompositeAlpha, PresentMode, Surface, Swapchain,
-    },
+    window::{CompositeAlpha, PresentMode, Surface, Swapchain},
     Backend, Graphics, Instance,
 };
 
@@ -34,8 +32,8 @@ use crate::pipeline::{Pipeline, PipelineBuilder};
 use crate::utils::{Build, With, WithError};
 use gfx_hal::Primitive;
 
-use winit::Window;
 use gfx_hal::window::Suboptimal;
+use winit::Window;
 
 /// HalStateOptions is needed by the `HalState::new` function.
 /// It initialize the Generic HalState with all the needed informations.
@@ -84,7 +82,6 @@ pub struct GenericHalState<B: Backend<Device = D>, D: Device<B>, I: Instance<Bac
 }
 
 impl HalState {
-
     /// Create a new HalState and initialize it.
     pub fn new(window: &Window, opt: &HalStateOptions) -> Result<Self, &'static str> {
         let instance = back::Instance::create("HalState", 1);
@@ -123,6 +120,7 @@ where
         opt: &HalStateOptions,
     ) -> Result<Self, &'static str> {
         let adapter = GfxUtils::pick_adapter(&instance, &surface)?;
+
         let (mut device, queue_group) = GfxUtils::<B, D, I>::get_device(&adapter, &surface)?;
         {
             let (caps, available_formats, available_modes) =
@@ -131,16 +129,15 @@ where
             info!("Available Formats: {:?}", available_formats);
             info!("Available Present Modes: {:?}", available_modes);
         };
+
         let format = GfxUtils::<B, D, I>::get_format(&adapter, &surface)?;
         let extent = GfxUtils::<B, D, I>::get_extent(&adapter, &surface, window)?;
-        let present_mode = GfxUtils::<B, D, I>::get_present_mode(&adapter, &surface, &opt.pm_order)?;
-        let frames_in_flight = GfxUtils::<B, D, I>::get_image_count(&adapter, &surface, present_mode);
-        let (swapchain, backbuffer) = GfxUtils::<B, D, I>::get_swapchain(
-            &adapter,
-            &device,
-            &mut surface,
-            &window
-        )?;
+        let present_mode =
+            GfxUtils::<B, D, I>::get_present_mode(&adapter, &surface, &opt.pm_order)?;
+        let frames_in_flight =
+            GfxUtils::<B, D, I>::get_image_count(&adapter, &surface, present_mode);
+        let (swapchain, backbuffer) =
+            GfxUtils::<B, D, I>::get_swapchain(&adapter, &device, &mut surface, &window)?;
         let render_pass = GfxUtils::<B, D, I>::get_render_pass(format, &device)?;
         let (image_available_semaphores, render_finished_semaphores, in_flight_fences) = {
             let in_flight_fences = ((0..frames_in_flight)
@@ -177,23 +174,23 @@ where
             )
         };
         let image_views = backbuffer
-                .into_iter()
-                .map(|image| unsafe {
-                    device
-                        .create_image_view(
-                            &image,
-                            ViewKind::D2,
-                            format,
-                            Swizzle::NO,
-                            SubresourceRange {
-                                aspects: Aspects::COLOR,
-                                levels: 0..1,
-                                layers: 0..1,
-                            },
-                        )
-                        .map_err(|_| "Couldn't create the image_view for the image!")
-                })
-                .collect::<Result<Vec<_>, &str>>()?;
+            .into_iter()
+            .map(|image| unsafe {
+                device
+                    .create_image_view(
+                        &image,
+                        ViewKind::D2,
+                        format,
+                        Swizzle::NO,
+                        SubresourceRange {
+                            aspects: Aspects::COLOR,
+                            levels: 0..1,
+                            layers: 0..1,
+                        },
+                    )
+                    .map_err(|_| "Couldn't create the image_view for the image!")
+            })
+            .collect::<Result<Vec<_>, &str>>()?;
 
         let framebuffers: Vec<B::Framebuffer> = {
             image_views
@@ -255,7 +252,7 @@ where
             .with(VertexBufferDesc {
                 binding: 0,
                 stride: (std::mem::size_of::<f32>() * 5) as u32,
-                rate: VertexInputRate::Instance(1),
+                rate: VertexInputRate::Vertex,
             })
             .with(Rasterizer {
                 depth_clamping: false,
@@ -272,12 +269,10 @@ where
             })
             .with(BlendDesc {
                 logic_op: Some(LogicOp::Copy),
-                targets: vec![
-                    ColorBlendDesc {
-                        mask: ColorMask::ALL,
-                        blend: Some(blend_state),
-                    }
-                ],
+                targets: vec![ColorBlendDesc {
+                    mask: ColorMask::ALL,
+                    blend: Some(blend_state),
+                }],
             })
             .with(BakedStates {
                 viewport: Some(Viewport {
@@ -336,7 +331,10 @@ where
 
     /// Draw a a given triangle.
     /// It's a big function again and it will certainly be splitted or reworked.
-    pub fn draw_triangle_frame(&mut self, triangle: Triangle) -> Result<Option<Suboptimal>, &'static str> {
+    pub fn draw_triangle_frame(
+        &mut self,
+        triangle: Triangle,
+    ) -> Result<Option<Suboptimal>, &'static str> {
         // SETUP FOR THIS FRAME
         let image_available = &self.image_available_semaphores[self.current_frame];
         let render_finished = &self.render_finished_semaphores[self.current_frame];
