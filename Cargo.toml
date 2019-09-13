@@ -1,5 +1,5 @@
 [package]
-name = "render-lib"
+name = "avenir"
 version = "0.1.0"
 authors = ["nwmqpa <thomas.nicolleŧ@epitech.eu>", "afourcat <alexandre.fourcat@epitech.eu>"]
 exclude = ["examples/*"]

@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 extern crate log;
-extern crate render_lib;
+extern crate avenir;
 extern crate simple_logger;
 extern crate winit;
 
