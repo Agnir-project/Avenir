@@ -5,7 +5,7 @@
 //  module:
 //! Trying to load a voxel map with avenir.
 
-use avenir::prelude::{Camera, Renderer};
+use avenir::prelude::{Camera, Renderer, Color};
 
 use std::path::PathBuf;
 
@@ -19,6 +19,7 @@ fn main() {
         window_name: "Map example".to_string(),
         assets_folder: PathBuf::from("./assets/"),
         memory_layout: Default::default(),
+        clear_color: Color(0.0, 0.0, 0.0),
     };
 
     // Initializing renderer.
