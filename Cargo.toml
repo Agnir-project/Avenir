@@ -11,6 +11,7 @@ default = []
 metal = ["gfx-backend-metal"]
 dx12 = ["gfx-backend-dx12"]
 vulkan = ["gfx-backend-vulkan"]
+gltf-format = ["gltf"]
 
 [dependencies]
 winit = "0.19.3"
@@ -19,6 +20,11 @@ arrayvec = "0.4"
 gfx-hal = "0.3.1"
 simple_logger = "1.0"
 shaderc = "0.6.1"
+
+[dependencies.gltf]
+version = "0.13"
+features = ["extras", "names"]
+optional = true
 
 [dependencies.gfx-backend-vulkan]
 features = ["winit", "x11"]
@@ -38,3 +44,7 @@ optional = true
 [[example]]
 name = "triangle"
 path = "examples/triangle/main.rs"
+
+[[example]]
+name = "gltf"
+path = "examples/gltf/main.rs"
