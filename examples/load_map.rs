@@ -47,10 +47,10 @@ fn main() {
 fn render_map(renderer: &mut Renderer, map: &Map, camera: &mut Camera) {
     // Iterating through chunks.
     for chunk in map.chunks() {
-        /// Getting chunk position.
+        // Getting chunk position.
         let pos = chunk.position();
 
-        /// Getting updated mesh informations.
+        // Getting updated mesh informations.
         let mesh = if chunk.need_mesh_update() {
             chunk.generate_mesh();
         } else {
