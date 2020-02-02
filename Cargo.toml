@@ -8,17 +8,15 @@ edition = "2018"
 
 [features]
 default = []
-vulkan_backend = []
-metal_backend = []
-dx12_backend = []
+vulkan-backend = []
+metal-backend = []
+dx12-backend = []
 3d-format = ["gltf", "dot_vox"]
 
 [dependencies]
 log = "0.4.0"
-arrayvec = "0.4"
-gfx-hal = "0.3.1"
 simple_logger = "1.0"
-shaderc = "0.6.1"
+generic-octree = "0.1.2"
 
 [dependencies.rendy]
 version = "0.5.1"
