@@ -1,48 +1,26 @@
 [package]
-name = "avenir"
+name = "rendy-test"
 version = "0.1.0"
-authors = ["nwmqpa <thomas.nicolleŧ@epitech.eu>", "afourcat <alexandre.fourcat@epitech.eu>"]
-exclude = ["examples/*"]
+authors = ["Quentin <quentin.liardeaux@epitech.eu>"]
 edition = "2018"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = []
-vulkan-backend = []
-metal-backend = []
-dx12-backend = []
-3d-format = ["gltf", "dot_vox"]
-
-[dependencies]
-log = "0.4.0"
-simple_logger = "1.0"
-generic-octree = "0.1.2"
+empty = ["rendy/empty"]
+metal = ["rendy/metal"]
+vulkan = ["rendy/vulkan"]
+gl = ["rendy/gl"]
+no-slow-safety-checks = ["rendy/no-slow-safety-checks"]
+shader-compiler =  ["rendy/shader-compiler"]
+experimental-spirv-reflection = ["rendy/spirv-reflection"]
 
 [dependencies.rendy]
 version = "0.5.1"
-features = ["base", "init-winit", "vulkan"]
+default-features = false
+features = ["base", "init-winit", "vulkan", "shader-compiler"]
 
-[target.'cfg(target_os = "macos")'.dependencies.rendy]
-version = "0.5.1"
-features = ["base", "init-winit"]
-
-[target.'cfg(windows)'.dependencies.rendy]
-version = "0.5.1"
-features = ["base", "init-winit", "metal"]
-
-[dependencies.dot_vox]
-version = "4.0.0"
-optional = true
-
-[dependencies.gltf]
-version = "0.13"
-features = ["extras", "names"]
-optional = true
-
-[[example]]
-name = "triangle"
-path = "examples/triangle/main.rs"
-
-[[example]]
-name = "gltf"
-path = "examples/gltf/main.rs"
+[dependencies]
+nalgebra = "0.19.0"
+lazy_static = "1.4.0"
+genmesh = "0.6.2"
