@@ -507,7 +507,7 @@ fn run<B: hal::Backend>(event_loop: EventLoop<()>, mut factory: Factory<B>, mut 
         .build(&mut factory, &mut families, &scene)
         .unwrap();
 
-    scene.add_cube(graph.node_queue(pass), &factory);
+    scene.add_sphere(graph.node_queue(pass), &factory);
 
     let mut frame = 0u64;
     let mut graph = Some(graph);
