@@ -35,7 +35,6 @@ use rendy::{
     wsi::Surface,
 };
 
-pub mod mesh;
 pub mod scene;
 
 use scene::*;
@@ -340,7 +339,7 @@ fn run<B: hal::Backend>(
     surface: Surface<B>,
     window: Window,
 ) {
-    let mut graph_builder = GraphBuilder::<_, ()>::new();
+    let mut graph_builder = GraphBuilder::<_, Scene<_>>::new();
 
     let size = window.inner_size();
     let window_kind = hal::image::Kind::D2(size.width as u32, size.height as u32, 1, 1);
@@ -359,15 +358,61 @@ fn run<B: hal::Backend>(
     );
 
     let pass = graph_builder.add_node(
-        crate::mesh::Pipeline::builder()
+        VoxelRenderPipeline::builder()
             .into_subpass()
+            .with_color_surface()
             .with_depth_stencil(depth)
-            .into_pass(),
+            .into_pass()
+            .with_surface(
+                surface,
+                hal::window::Extent2D {
+                    width: size.width as _,
+                    height: size.height as _,
+                },
+                Some(hal::command::ClearValue {
+                    color: hal::command::ClearColor {
+                        float32: [1.0, 1.0, 1.0, 1.0],
+                    },
+                }),
+            ),
     );
 
+    let mut scene = Scene {
+        camera: Camera {
+            proj: nalgebra::Perspective3::new(aspect as f32, 3.1415 / 4.0, 1.0, 200.0),
+            view: nalgebra::Projective3::identity() * nalgebra::Translation3::new(0.0, 0.0, 10.0),
+        },
+        object_mesh: None,
+        objects: vec![],
+        lights: vec![
+            Light {
+                pad: 0.0,
+                pos: nalgebra::Vector3::new(0.0, 0.0, 0.0),
+                intensity: 10.0,
+            },
+            Light {
+                pad: 0.0,
+                pos: nalgebra::Vector3::new(0.0, 20.0, -20.0),
+                intensity: 140.0,
+            },
+            Light {
+                pad: 0.0,
+                pos: nalgebra::Vector3::new(-20.0, 0.0, -60.0),
+                intensity: 100.0,
+            },
+            Light {
+                pad: 0.0,
+                pos: nalgebra::Vector3::new(20.0, -30.0, -100.0),
+                intensity: 160.0,
+            },
+        ],
+    };
+
     let graph = graph_builder
-        .build(&mut factory, &mut families, &())
+        .build(&mut factory, &mut families, &scene)
         .unwrap();
+
+    scene.add_sphere(graph.node_queue(pass), &factory);
 
     let mut frame = 0u64;
     let mut graph = Some(graph);
@@ -387,6 +432,7 @@ fn run<B: hal::Backend>(
                             VirtualKeyCode::S => {}
                             _ => {}
                         }
+                        println!("{:#?}", scene.camera.view);
                     }
                 }
                 _ => {}
@@ -394,16 +440,23 @@ fn run<B: hal::Backend>(
             Event::MainEventsCleared => {
                 factory.maintain(&mut families);
                 if let Some(ref mut graph) = graph {
-                    graph.run(&mut factory, &mut families, &());
+                    graph.run(&mut factory, &mut families, &scene);
                     frame += 1;
+                }
+
+                if scene.objects.len() < MAX_OBJECTS {
+                    scene.objects.push({ nalgebra::Transform3::identity() })
+                } else {
+                    //*control_flow = ControlFlow::Exit
                 }
             }
             _ => {}
         }
         if *control_flow == ControlFlow::Exit {
             if let Some(graph) = graph.take() {
-                graph.dispose(&mut factory, &());
+                graph.dispose(&mut factory, &scene);
             }
+            drop(scene.object_mesh.take());
         }
     });
 }

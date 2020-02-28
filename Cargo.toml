@@ -24,3 +24,5 @@ features = ["base", "init-winit", "vulkan", "shader-compiler"]
 nalgebra = "0.19.0"
 lazy_static = "1.4.0"
 genmesh = "0.6.2"
+rand = "0.7.3"
+palette = "0.5.0"
