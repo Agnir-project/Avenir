@@ -36,7 +36,7 @@ where
         vec![]
     }
 
-    fn load_shader_set(&self, factory: &mut Factory<B>, aux: &()) -> rendy::shader::ShaderSet<B> {
+    fn load_shader_set(&self, _factory: &mut Factory<B>, _aux: &()) -> rendy::shader::ShaderSet<B> {
         Default::default()
     }
 
@@ -49,13 +49,13 @@ where
 
     fn build<'a>(
         self,
-        ctx: &GraphContext<B>,
-        factory: &mut Factory<B>,
-        queue: QueueId,
-        aux: &(),
-        buffers: Vec<NodeBuffer>,
-        images: Vec<NodeImage>,
-        set_layouts: &[Handle<DescriptorSetLayout<B>>],
+        _ctx: &GraphContext<B>,
+        _factory: &mut Factory<B>,
+        _queue: QueueId,
+        _aux: &(),
+        _buffers: Vec<NodeBuffer>,
+        _images: Vec<NodeImage>,
+        _set_layouts: &[Handle<DescriptorSetLayout<B>>],
     ) -> Result<Self::Pipeline, rendy::core::hal::pso::CreationError> {
         Err(rendy::core::hal::pso::CreationError::Other)
     }
@@ -69,12 +69,12 @@ where
 
     fn draw(
         &mut self,
-        layout: &B::PipelineLayout,
-        encoder: RenderPassEncoder<'_, B>,
-        index: usize,
-        aux: &(),
+        _layout: &B::PipelineLayout,
+        _encoder: RenderPassEncoder<'_, B>,
+        _index: usize,
+        _aux: &(),
     ) {
     }
 
-    fn dispose(self, factory: &mut Factory<B>, aux: &()) {}
+    fn dispose(self, _factory: &mut Factory<B>, _aux: &()) {}
 }

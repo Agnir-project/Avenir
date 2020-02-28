@@ -57,7 +57,7 @@ use rendy::mesh::AsVertex;
 lazy_static::lazy_static! {
     static ref VERTEX: SpirvShader = SourceShaderInfo::new(
         include_str!("shader.vert"),
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/shader.vert").into(),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/shader.vert").into(),
         ShaderKind::Vertex,
         SourceLanguage::GLSL,
         "main",
@@ -65,7 +65,7 @@ lazy_static::lazy_static! {
 
     static ref FRAGMENT: SpirvShader = SourceShaderInfo::new(
         include_str!("shader.frag"),
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/shader.frag").into(),
+        concat!(env!("CARGO_MANIFEST_DIR"), "/shader.frag").into(),
         ShaderKind::Fragment,
         SourceLanguage::GLSL,
         "main",
@@ -337,14 +337,14 @@ fn run<B: hal::Backend>(
     event_loop: EventLoop<()>,
     mut factory: Factory<B>,
     mut families: Families<B>,
-    surface: Surface<B>,
+    _surface: Surface<B>,
     window: Window,
 ) {
     let mut graph_builder = GraphBuilder::<_, ()>::new();
 
     let size = window.inner_size();
     let window_kind = hal::image::Kind::D2(size.width as u32, size.height as u32, 1, 1);
-    let aspect = size.width / size.height;
+    let _aspect = size.width / size.height;
 
     let depth = graph_builder.create_image(
         window_kind,
@@ -358,7 +358,7 @@ fn run<B: hal::Backend>(
         }),
     );
 
-    let pass = graph_builder.add_node(
+    let _pass = graph_builder.add_node(
         crate::mesh::Pipeline::builder()
             .into_subpass()
             .with_depth_stencil(depth)
