@@ -32,7 +32,6 @@ use rendy::{
     memory::Dynamic,
     mesh::{Indices, Mesh, Model, PosColorNorm},
     resource::{Buffer, BufferInfo, DescriptorSet, DescriptorSetLayout, Escape, Handle},
-    shader::{Shader, ShaderKind, ShaderSet, SourceLanguage, SourceShaderInfo, SpirvShader},
     wsi::Surface,
 };
 
@@ -47,41 +46,14 @@ type Backend = rendy::vulkan::Backend;
 #[cfg(feature = "dx12")]
 type Backend = rendy::dx12::Backend;
 
+#[cfg(not(any(feature = "metal", feature = "vulkan", feature = "dx12")))]
+type Backend = rendy::empty::Backend;
+
 // Shaders initialisation
-
-lazy_static::lazy_static! {
-    static ref VERTEX: SpirvShader = SourceShaderInfo::new(
-        include_str!("shader.vert"),
-        concat!(env!("CARGO_MANIFEST_DIR"), "/shader.vert").into(),
-        ShaderKind::Vertex,
-        SourceLanguage::GLSL,
-        "main",
-    ).precompile().unwrap();
-
-    static ref FRAGMENT: SpirvShader = SourceShaderInfo::new(
-        include_str!("shader.frag"),
-        concat!(env!("CARGO_MANIFEST_DIR"), "/shader.frag").into(),
-        ShaderKind::Fragment,
-        SourceLanguage::GLSL,
-        "main",
-    ).precompile().unwrap();
-
-    static ref SHADERS: rendy::shader::ShaderSetBuilder = rendy::shader::ShaderSetBuilder::default()
-        .with_vertex(&*VERTEX).unwrap()
-        .with_fragment(&*FRAGMENT).unwrap();
-}
-
-#[derive(Clone, Copy)]
-#[repr(C, align(16))]
-struct UniformArgs {
-    model: nalgebra::Matrix4<f32>,
-    proj: nalgebra::Matrix4<f32>,
-    view: nalgebra::Matrix4<f32>,
-}
 
 const MAX_LIGHTS: usize = 32;
 const MAX_OBJECTS: usize = 1;
-const UNIFORM_SIZE: u64 = std::mem::size_of::<UniformArgs>() as u64;
+const UNIFORM_SIZE: u64 = std::mem::size_of::<crate::mesh::UniformArgs>() as u64;
 const MODELS_SIZE: u64 = std::mem::size_of::<Model>() as u64 * MAX_OBJECTS as u64;
 const INDIRECT_SIZE: u64 = std::mem::size_of::<DrawIndexedCommand>() as u64;
 
@@ -118,7 +90,7 @@ fn run<B: hal::Backend>(
         factory.get_surface_format(&surface),
         Some(hal::command::ClearValue {
             color: hal::command::ClearColor {
-                float32: [1., 0., 1., 0.],
+                float32: [1., 0.5, 1., 0.],
             },
         }),
     );
@@ -127,6 +99,7 @@ fn run<B: hal::Backend>(
         crate::mesh::Pipeline::builder()
             .into_subpass()
             .with_depth_stencil(depth)
+            .with_color(color)
             .into_pass(),
     );
 
@@ -147,13 +120,8 @@ fn run<B: hal::Backend>(
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 WindowEvent::KeyboardInput { input, .. } => {
-                    println!("{:#?}", input);
                     if let Some(code) = input.virtual_keycode {
                         match code {
-                            VirtualKeyCode::D => {}
-                            VirtualKeyCode::Z => {}
-                            VirtualKeyCode::Q => {}
-                            VirtualKeyCode::S => {}
                             _ => {}
                         }
                     }
@@ -193,8 +161,5 @@ fn main() {
     .unwrap();
     rendy::with_any_windowed_rendy!((rendy)
         use back;
-        (factory, families, surface, window) => {
-
-        run(event_loop, factory, families, surface, window);
-    });
+        (factory, families, surface, window) => { run(event_loop, factory, families, surface, window) });
 }
