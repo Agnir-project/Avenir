@@ -1,10 +1,12 @@
 [package]
 name = "Avenir"
 version = "0.1.0"
-authors = ["Quentin <quentin.liardeaux@epitech.eu>"]
+authors = [ "Quentin <quentin.liardeaux@epitech.eu>"
+          , "Kilian Perrier <kilian.perrier@epitech.eu>"
+          , "Thomas Nicollet <thomas.nicollet@epitech.eu>"
+          , "Alexandre Fourcat <afourcat@gmail.com>"
+          ]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 empty = ["rendy/empty"]
