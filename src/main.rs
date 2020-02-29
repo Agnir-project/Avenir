@@ -134,9 +134,9 @@ fn run<B: hal::Backend>(
         .add_node(PresentNode::builder(&factory, surface, color).with_dependency(meshpass));
 
     let graph = graph_builder
-                    .with_frames_in_flight(3)
-                    .build(&mut factory, &mut families, &())
-                    .unwrap();
+        .with_frames_in_flight(3)
+        .build(&mut factory, &mut families, &())
+        .unwrap();
 
     let mut frame = 0u64;
     let mut graph = Some(graph);
