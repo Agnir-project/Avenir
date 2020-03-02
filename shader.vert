@@ -8,6 +8,7 @@ layout(location = 2) in vec3 normal;
 layout(location = 3) in vec4 model[4]; // per-instance.
 
 layout(set = 0, binding = 0) uniform Args {
+    mat4 model;
     mat4 proj;
     mat4 view;
 };
