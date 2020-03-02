@@ -1,8 +1,6 @@
 // use octree::Octree; TODO
-use genmesh::{
-    generators::{IndexedPolygon, SharedVertex},
-};
-use nalgebra::{Matrix3};
+use genmesh::generators::{IndexedPolygon, SharedVertex};
+use nalgebra::Matrix3;
 use rendy::command::{DrawIndexedCommand, QueueId, RenderPassEncoder};
 use rendy::factory::Factory;
 use rendy::graph::render::*;
@@ -192,11 +190,11 @@ where
                 })
                 .collect();
 
-                Mesh::<B>::builder()
-                    .with_indices(indices)
-                    .with_vertices(vertices)
-                    .build(queue, &factory)
-                    .unwrap()
+            Mesh::<B>::builder()
+                .with_indices(indices)
+                .with_vertices(vertices)
+                .build(queue, &factory)
+                .unwrap()
         };
 
         Ok(Pipeline {
