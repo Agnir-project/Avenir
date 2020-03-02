@@ -1,9 +1,8 @@
 // use octree::Octree; TODO
 use genmesh::{
     generators::{IndexedPolygon, SharedVertex},
-    Triangulate,
 };
-use nalgebra::{Matrix3, Matrix4, Vector2, Vector3};
+use nalgebra::{Matrix3};
 use rendy::command::{DrawIndexedCommand, QueueId, RenderPassEncoder};
 use rendy::factory::Factory;
 use rendy::graph::render::*;
@@ -12,9 +11,9 @@ use rendy::graph::{
     GraphContext, NodeBuffer, NodeImage,
 };
 use rendy::hal;
-use rendy::hal::{adapter::PhysicalDevice, device::Device, pso::DescriptorPool};
-use rendy::memory::MemoryUsageValue;
-use rendy::mesh::{AsVertex, Mesh, Model, PosColorNorm, Position};
+use rendy::hal::{adapter::PhysicalDevice, device::Device};
+
+use rendy::mesh::{AsVertex, Mesh, Model, PosColorNorm};
 use rendy::resource::{Buffer, BufferInfo, DescriptorSet, DescriptorSetLayout, Escape, Handle};
 use rendy::shader::{
     Shader, ShaderKind, ShaderSet, ShaderSetBuilder, SourceLanguage, SourceShaderInfo, SpirvShader,
@@ -51,7 +50,7 @@ lazy_static::lazy_static! {
 }
 
 const UNIFORM_SIZE: u64 = std::mem::size_of::<UniformArgs>() as u64;
-const MAX_INSTANCE: u64 = 1_000_000;
+const MAX_INSTANCE: u64 = 100;
 const MODEL_SIZE: u64 = std::mem::size_of::<Model>() as u64 * MAX_INSTANCE;
 const INDIRECT_SIZE: u64 = std::mem::size_of::<DrawIndexedCommand>() as u64;
 
@@ -144,7 +143,7 @@ where
         let buffer = factory
             .create_buffer(
                 BufferInfo {
-                    size: MODEL_SIZE + UNIFORM_SIZE + INDIRECT_SIZE,
+                    size: (MODEL_SIZE + UNIFORM_SIZE + INDIRECT_SIZE) * frames,
                     usage: hal::buffer::Usage::UNIFORM
                         | hal::buffer::Usage::INDIRECT
                         | hal::buffer::Usage::VERTEX,
@@ -313,7 +312,7 @@ where
         }
     }
 
-    fn dispose(mut self, factory: &mut Factory<B>, _aux: &()) {
+    fn dispose(self, _factory: &mut Factory<B>, _aux: &()) {
         info!("Disposing Pipeline Mesh.");
     }
 }

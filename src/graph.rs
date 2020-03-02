@@ -61,7 +61,7 @@ where
         }),
     );
 
-    let meshpass = graph_builder.add_node(
+    let _meshpass = graph_builder.add_node(
         crate::mesh::Pipeline::builder()
             .into_subpass()
             .with_depth_stencil(depth)
