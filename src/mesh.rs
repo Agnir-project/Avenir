@@ -1,5 +1,4 @@
-// use octree::Octree; TODO
-use genmesh::generators::{IndexedPolygon, SharedVertex};
+use genmesh::{MapToVertices, Vertices, Triangulate, generators::{IndexedPolygon, SharedVertex}};
 use nalgebra::Matrix3;
 use rendy::command::{DrawIndexedCommand, QueueId, RenderPassEncoder};
 use rendy::factory::Factory;
@@ -16,13 +15,11 @@ use rendy::resource::{Buffer, BufferInfo, DescriptorSet, DescriptorSetLayout, Es
 use rendy::shader::{
     Shader, ShaderKind, ShaderSet, ShaderSetBuilder, SourceLanguage, SourceShaderInfo, SpirvShader,
 };
-
-#[cfg(feature = "experimental-spirv-reflection")]
-use rendy::shader::SpirvReflection;
+use std::mem::size_of;
 
 lazy_static::lazy_static! {
     static ref VERTEX: SpirvShader = SourceShaderInfo::new(
-        include_str!("shader.vert"),
+        include_str!("../shader.vert"),
         concat!(env!("CARGO_MANIFEST_DIR"), "/shader.vert").into(),
         ShaderKind::Vertex,
         SourceLanguage::GLSL,
@@ -30,7 +27,7 @@ lazy_static::lazy_static! {
     ).precompile().unwrap();
 
     static ref FRAGMENT: SpirvShader = SourceShaderInfo::new(
-            include_str!("shader.frag"),
+            include_str!("../shader.frag"),
             concat!(env!("CARGO_MANIFEST_DIR"), "/shader.frag").into(),
             ShaderKind::Fragment,
             SourceLanguage::GLSL,
@@ -40,31 +37,33 @@ lazy_static::lazy_static! {
     static ref SHADERS: ShaderSetBuilder = ShaderSetBuilder::default()
         .with_vertex(&*VERTEX).unwrap()
         .with_fragment(&*FRAGMENT).unwrap();
-}
 
-#[cfg(feature = "experimental-spirv-reflection")]
-lazy_static::lazy_static! {
-    static ref SHADER_REFLECTION: SpirvReflection = SHADERS.reflect().unwrap();
-}
+    static ref CUBE: genmesh::generators::Cone = genmesh::generators::Cone::new(10);
 
-const UNIFORM_SIZE: u64 = std::mem::size_of::<UniformArgs>() as u64;
-const MAX_INSTANCE: u64 = 100;
-const MODEL_SIZE: u64 = std::mem::size_of::<Model>() as u64 * MAX_INSTANCE;
-const INDIRECT_SIZE: u64 = std::mem::size_of::<DrawIndexedCommand>() as u64;
+    static ref CUBE_INDICES: Vec<u32> = genmesh::Vertices::vertices(CUBE.indexed_polygon_iter())
+        .map(|i| i as u32)
+        .collect();
+
+    static ref CUBE_VERTICES: Vec<PosColorNorm> = CUBE.shared_vertex_iter()
+                .map(|v| PosColorNorm {
+                    position: v.pos.into(),
+                    color: [
+                        (v.pos.x + 1.0) / 2.0,
+                        (v.pos.y + 1.0) / 2.0,
+                        (v.pos.z + 1.0) / 2.0,
+                        1.0,
+                    ]
+                    .into(),
+                    normal: v.normal.into(),
+                })
+                .collect();
+}
 
 #[derive(Clone, Copy)]
 #[repr(C, align(16))]
 pub struct UniformArgs {
-    model: nalgebra::Matrix3<f32>,
-    proj: nalgebra::Perspective3<f32>,
-    view: nalgebra::Projective3<f32>,
-}
-
-#[repr(C, align(16))]
-#[derive(Clone, Copy)]
-pub struct PosColor {
-    pos: nalgebra::Vector3<f32>,
-    color: nalgebra::Vector4<f32>,
+    proj: nalgebra::Matrix4<f32>,
+    view: nalgebra::Matrix4<f32>,
 }
 
 #[derive(Debug, Default)]
@@ -75,7 +74,32 @@ pub struct Pipeline<B: hal::Backend> {
     buffer: Escape<Buffer<B>>,
     sets: Vec<Escape<DescriptorSet<B>>>,
     mesh: Mesh<B>,
-    positions: Vec<Matrix3<f32>>,
+    positions: Vec<nalgebra::Transform3<f32>>,
+}
+
+const MAX_OBJECTS: usize = 1;
+const UNIFORM_SIZE: u64 = size_of::<UniformArgs>() as u64;
+const MODELS_SIZE: u64 = size_of::<Model>() as u64 * MAX_OBJECTS as u64;
+const INDIRECT_SIZE: u64 = size_of::<DrawIndexedCommand>() as u64;
+
+fn iceil(value: u64, scale: u64) -> u64 {
+    ((value - 1) / scale + 1) * scale
+}
+
+fn buffer_frame_size(align: u64) -> u64 {
+    iceil(UNIFORM_SIZE + MODELS_SIZE + INDIRECT_SIZE, align)
+}
+
+fn uniform_offset(index: usize, align: u64) -> u64 {
+    buffer_frame_size(align) * index as u64
+}
+
+fn models_offset(index: usize, align: u64) -> u64 {
+    uniform_offset(index, align) + UNIFORM_SIZE
+}
+
+fn indirect_offset(index: usize, align: u64) -> u64 {
+    models_offset(index, align) + MODELS_SIZE
 }
 
 impl<B: hal::Backend> std::fmt::Debug for Pipeline<B> {
@@ -119,7 +143,7 @@ where
                     immutable_samplers: false,
                 }],
             }],
-            push_constants: vec![],
+            push_constants: Vec::new(),
         };
     }
 
@@ -138,10 +162,11 @@ where
             .physical()
             .limits()
             .min_uniform_buffer_offset_alignment;
+
         let buffer = factory
             .create_buffer(
                 BufferInfo {
-                    size: (MODEL_SIZE + UNIFORM_SIZE + INDIRECT_SIZE) * frames,
+                    size: buffer_frame_size(align) * frames as u64,
                     usage: hal::buffer::Usage::UNIFORM
                         | hal::buffer::Usage::INDIRECT
                         | hal::buffer::Usage::VERTEX,
@@ -163,46 +188,35 @@ where
                     array_offset: 0,
                     descriptors: Some(hal::pso::Descriptor::Buffer(
                         buffer.raw(),
-                        Some(index)..Some(index + UNIFORM_SIZE),
+                        Some(uniform_offset(index, align))
+                            ..Some(uniform_offset(index, align) + UNIFORM_SIZE),
                     )),
                 }));
                 sets.push(set);
             }
         }
 
-        let mesh = {
-            let cube = genmesh::generators::Cube::new();
-            let indices: Vec<_> = genmesh::Vertices::vertices(cube.indexed_polygon_iter())
-                .map(|i| i as u32)
-                .collect();
-            let vertices: Vec<_> = cube
-                .shared_vertex_iter()
-                .map(|v| PosColorNorm {
-                    position: v.pos.into(),
-                    color: [
-                        (v.pos.x + 1.0) / 2.0,
-                        (v.pos.y + 1.0) / 2.0,
-                        (v.pos.z + 1.0) / 2.0,
-                        1.0,
-                    ]
-                    .into(),
-                    normal: v.normal.into(),
-                })
-                .collect();
+        let mesh = Mesh::<B>::builder()
+            .with_vertices(&(*CUBE_VERTICES)[..])
+            .with_indices(&(*CUBE_INDICES)[..])
+             .build(queue, &factory)
+            .unwrap();
 
-            Mesh::<B>::builder()
-                .with_indices(indices)
-                .with_vertices(vertices)
-                .build(queue, &factory)
-                .unwrap()
-        };
+        println!("CUBE INDEX: {:#?} CUBE VERTICES: {:#?} POLY: {}.", *CUBE_INDICES, *CUBE_VERTICES, CUBE.indexed_polygon_count());
+
+        let positions: Vec<nalgebra::Transform3<f32>> = (0..MAX_OBJECTS)
+            .map(|i| {
+                nalgebra::Transform3::identity()
+                    * nalgebra::Translation3::new(i as f32, i as f32, i as f32)
+            })
+            .collect();
 
         Ok(Pipeline {
             align,
             buffer,
             sets,
             mesh,
-            positions: vec![nalgebra::Matrix3::identity()],
+            positions,
         })
     }
 }
@@ -221,22 +235,32 @@ where
         index: usize,
         _aux: &(),
     ) -> PrepareResult {
-        debug!("Pipeline Mesh, Preparing.");
+        debug!("Pipeline Mesh, Preparing {}.", index);
 
         unsafe {
             // Upload Uniform Parameters
             factory
                 .upload_visible_buffer(
                     &mut self.buffer,
-                    (UNIFORM_SIZE + MODEL_SIZE + INDIRECT_SIZE) * index as u64,
+                    uniform_offset(index, self.align) as u64,
                     &[UniformArgs {
-                        proj: nalgebra::Perspective3::new(1920. / 1080., 3.14116 / 4.0, 1.0, 200.0),
-                        view: nalgebra::Projective3::identity()
-                            * nalgebra::Translation3::new(0.0, 0.0, 10.0),
-                        model: nalgebra::Matrix3::identity(),
+                        proj: nalgebra::Perspective3::new(1920. / 1080., 3.14116 / 4.0, 1.0, 300.0)
+                            .to_homogeneous(),
+                        view: (nalgebra::Projective3::identity()
+                            * nalgebra::Translation3::new(0.0, 0.0, 10.0))
+                        .inverse()
+                        .to_homogeneous(),
                     }],
                 )
                 .unwrap();
+        };
+
+        let command = DrawIndexedCommand {
+            index_count: self.mesh.len(),
+            instance_count: self.positions.len() as u32,
+            first_index: 0,
+            vertex_offset: 0,
+            first_instance: 0,
         };
 
         unsafe {
@@ -244,16 +268,8 @@ where
             factory
                 .upload_visible_buffer(
                     &mut self.buffer,
-                    ((UNIFORM_SIZE + MODEL_SIZE + INDIRECT_SIZE) * index as u64)
-                        + MODEL_SIZE
-                        + UNIFORM_SIZE as u64,
-                    &[DrawIndexedCommand {
-                        index_count: self.mesh.len(),
-                        instance_count: 1,
-                        first_index: 0,
-                        vertex_offset: 0,
-                        first_instance: 0,
-                    }],
+                    indirect_offset(index, self.align),
+                    &[command],
                 )
                 .unwrap()
         }
@@ -263,7 +279,7 @@ where
             factory
                 .upload_visible_buffer(
                     &mut self.buffer,
-                    ((UNIFORM_SIZE + MODEL_SIZE + INDIRECT_SIZE) * index as u64) + UNIFORM_SIZE,
+                    models_offset(index, self.align),
                     &self.positions[..],
                 )
                 .unwrap()
@@ -292,18 +308,14 @@ where
             let vertex = [PosColorNorm::vertex()];
 
             self.mesh.bind(0, &vertex, &mut encoder).unwrap();
+
             encoder.bind_vertex_buffers(
                 1,
-                std::iter::once((
-                    self.buffer.raw(),
-                    ((UNIFORM_SIZE + MODEL_SIZE + INDIRECT_SIZE) * index as u64) + UNIFORM_SIZE,
-                )),
+                std::iter::once((self.buffer.raw(), models_offset(index, self.align))),
             );
             encoder.draw_indexed_indirect(
                 self.buffer.raw(),
-                ((UNIFORM_SIZE + MODEL_SIZE + INDIRECT_SIZE) * index as u64)
-                    + UNIFORM_SIZE
-                    + MODEL_SIZE,
+                indirect_offset(index, self.align),
                 1,
                 INDIRECT_SIZE as u32,
             );

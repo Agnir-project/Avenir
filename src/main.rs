@@ -91,11 +91,8 @@ fn run<B: hal::Backend>(
                 factory.maintain(&mut families);
 
                 if let Some(ref mut graph) = graph {
-                    frame += 1;
-                    if (frame % 100) == 0 {
-                        debug!("Drawing Frame: {}.", frame);
-                    }
                     graph.run(&mut factory, &mut families, &());
+                    frame += 1;
                 }
             }
             _ => {}
@@ -120,14 +117,10 @@ fn main() {
         .with_inner_size(LogicalSize::new(WIDTH, HEIGHT))
         .with_title("Avenir");
 
-    let rendy = AnyWindowedRendy::init(
-        EnabledBackend::which::<Backend>(),
-        &config,
-        window,
-        &event_loop,
-    )
-    .unwrap();
+    let rendy = AnyWindowedRendy::init_auto(&config, window, &event_loop,).unwrap();
     rendy::with_any_windowed_rendy!((rendy)
         use back;
-        (factory, families, surface, window) => { run(event_loop, factory, families, surface, window) });
+        (factory, families, surface, window) => {
+            run(event_loop, factory, families, surface, window)
+        });
 }

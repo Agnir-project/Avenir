@@ -12,6 +12,7 @@ edition = "2018"
 empty = ["rendy/empty"]
 metal = ["rendy/metal"]
 vulkan = ["rendy/vulkan"]
+dx12 = ["rendy/dx12"]
 gl = ["rendy/gl"]
 no-slow-safety-checks = ["rendy/no-slow-safety-checks"]
 shader-compiler =  ["rendy/shader-compiler"]
@@ -20,7 +21,7 @@ experimental-spirv-reflection = ["rendy/spirv-reflection"]
 [dependencies.rendy]
 version = "0.5.1"
 default-features = false
-features = ["base", "init-winit", "vulkan", "shader-compiler"]
+features = ["base", "init-winit", "shader-compiler"]
 generic-octree = "0.3.1"
 
 [dependencies]

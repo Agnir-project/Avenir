@@ -75,7 +75,7 @@ where
                 },
                 Some(hal::command::ClearValue {
                     color: hal::command::ClearColor {
-                        float32: [0.5, 0.0, 0.5, 1.0],
+                        float32: [0.8, 0.8, 0.8, 1.0],
                     },
                 }),
             ),
