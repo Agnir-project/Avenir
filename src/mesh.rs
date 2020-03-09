@@ -1,5 +1,8 @@
-use genmesh::{MapToVertices, Vertices, Triangulate, generators::{IndexedPolygon, SharedVertex}};
-use nalgebra::Matrix3;
+use genmesh::{
+    generators::{IndexedPolygon, SharedVertex},
+    MapToVertices, Triangulate, Vertices,
+};
+use nalgebra::{Matrix4, Point3, Vector3, Perspective3, Projective3};
 use rendy::command::{DrawIndexedCommand, QueueId, RenderPassEncoder};
 use rendy::factory::Factory;
 use rendy::graph::render::*;
@@ -62,8 +65,40 @@ lazy_static::lazy_static! {
 #[derive(Clone, Copy)]
 #[repr(C, align(16))]
 pub struct UniformArgs {
-    proj: nalgebra::Matrix4<f32>,
-    view: nalgebra::Matrix4<f32>,
+    proj: Matrix4<f32>,
+    view: Matrix4<f32>,
+}
+
+pub struct Camera {
+    view: Matrix4<f32>,
+    proj: Perspective3<f32>,
+}
+
+impl Camera {
+    fn look_at(
+        eye: nalgebra::Point3<f32>,
+        target: nalgebra::Point3<f32>,
+        up: nalgebra::Vector3<f32>,
+        fov: f32,
+        aspect: f32,
+    ) -> Self {
+        let view = Matrix4::<f32>::look_at_rh(&eye, &target, &up);
+        let proj = Perspective3::new(aspect, fov, 1.0, 200.0);
+
+        Camera {
+            proj,
+            view: view.into(),
+        }
+    }
+}
+
+impl Into<UniformArgs> for Camera {
+    fn into(self) -> UniformArgs {
+        UniformArgs {
+            view: self.view,
+            proj: self.proj.to_homogeneous(),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -199,10 +234,15 @@ where
         let mesh = Mesh::<B>::builder()
             .with_vertices(&(*CUBE_VERTICES)[..])
             .with_indices(&(*CUBE_INDICES)[..])
-             .build(queue, &factory)
+            .build(queue, &factory)
             .unwrap();
 
-        println!("CUBE INDEX: {:#?} CUBE VERTICES: {:#?} POLY: {}.", *CUBE_INDICES, *CUBE_VERTICES, CUBE.indexed_polygon_count());
+        println!(
+            "CUBE INDEX: {:#?} CUBE VERTICES: {:#?} POLY: {}.",
+            *CUBE_INDICES,
+            *CUBE_VERTICES,
+            CUBE.indexed_polygon_count()
+        );
 
         let positions: Vec<nalgebra::Transform3<f32>> = (0..MAX_OBJECTS)
             .map(|i| {
