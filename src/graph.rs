@@ -33,16 +33,19 @@ use rendy::{
     wsi::Surface,
 };
 
+use crate::camera::Camera;
+
 pub fn build<B>(
     mut families: &mut Families<B>,
     window: &Window,
     mut factory: &mut Factory<B>,
     surface: Surface<B>,
-) -> Result<Graph<B, ()>, GraphBuildError>
+    cam: &Camera,
+) -> Result<Graph<B, Camera>, GraphBuildError>
 where
     B: hal::Backend,
 {
-    let mut graph_builder = GraphBuilder::<B, ()>::new();
+    let mut graph_builder = GraphBuilder::<B, Camera>::new();
 
     let size = window.inner_size();
 
@@ -81,5 +84,5 @@ where
             ),
     );
 
-    graph_builder.build(&mut factory, &mut families, &())
+    graph_builder.build(&mut factory, &mut families, &cam)
 }

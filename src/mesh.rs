@@ -2,7 +2,7 @@ use genmesh::{
     generators::{IndexedPolygon, SharedVertex},
     MapToVertices, Triangulate, Vertices,
 };
-use nalgebra::{Matrix4, Point3, Vector3, Perspective3, Projective3};
+use nalgebra::{Translation3, Matrix4, Matrix3, Perspective3, Point3, Projective3, Vector3, Isometry3};
 use rendy::command::{DrawIndexedCommand, QueueId, RenderPassEncoder};
 use rendy::factory::Factory;
 use rendy::graph::render::*;
@@ -18,6 +18,7 @@ use rendy::resource::{Buffer, BufferInfo, DescriptorSet, DescriptorSetLayout, Es
 use rendy::shader::{
     Shader, ShaderKind, ShaderSet, ShaderSetBuilder, SourceLanguage, SourceShaderInfo, SpirvShader,
 };
+use crate::camera::Camera;
 use std::mem::size_of;
 
 lazy_static::lazy_static! {
@@ -65,40 +66,8 @@ lazy_static::lazy_static! {
 #[derive(Clone, Copy)]
 #[repr(C, align(16))]
 pub struct UniformArgs {
-    proj: Matrix4<f32>,
-    view: Matrix4<f32>,
-}
-
-pub struct Camera {
-    view: Matrix4<f32>,
-    proj: Perspective3<f32>,
-}
-
-impl Camera {
-    fn look_at(
-        eye: nalgebra::Point3<f32>,
-        target: nalgebra::Point3<f32>,
-        up: nalgebra::Vector3<f32>,
-        fov: f32,
-        aspect: f32,
-    ) -> Self {
-        let view = Matrix4::<f32>::look_at_rh(&eye, &target, &up);
-        let proj = Perspective3::new(aspect, fov, 1.0, 200.0);
-
-        Camera {
-            proj,
-            view: view.into(),
-        }
-    }
-}
-
-impl Into<UniformArgs> for Camera {
-    fn into(self) -> UniformArgs {
-        UniformArgs {
-            view: self.view,
-            proj: self.proj.to_homogeneous(),
-        }
-    }
+    pub proj: Matrix4<f32>,
+    pub view: Matrix4<f32>,
 }
 
 #[derive(Debug, Default)]
@@ -112,7 +81,7 @@ pub struct Pipeline<B: hal::Backend> {
     positions: Vec<nalgebra::Transform3<f32>>,
 }
 
-const MAX_OBJECTS: usize = 1;
+const MAX_OBJECTS: usize = 100;
 const UNIFORM_SIZE: u64 = size_of::<UniformArgs>() as u64;
 const MODELS_SIZE: u64 = size_of::<Model>() as u64 * MAX_OBJECTS as u64;
 const INDIRECT_SIZE: u64 = size_of::<DrawIndexedCommand>() as u64;
@@ -143,7 +112,7 @@ impl<B: hal::Backend> std::fmt::Debug for Pipeline<B> {
     }
 }
 
-impl<B> SimpleGraphicsPipelineDesc<B, ()> for PipelineDesc
+impl<B> SimpleGraphicsPipelineDesc<B, Camera> for PipelineDesc
 where
     B: hal::Backend,
 {
@@ -163,7 +132,11 @@ where
         ];
     }
 
-    fn load_shader_set(&self, factory: &mut Factory<B>, _aux: &()) -> rendy::shader::ShaderSet<B> {
+    fn load_shader_set(
+        &self,
+        factory: &mut Factory<B>,
+        _aux: &Camera,
+    ) -> rendy::shader::ShaderSet<B> {
         SHADERS.build(factory, Default::default()).unwrap()
     }
 
@@ -187,7 +160,7 @@ where
         ctx: &GraphContext<B>,
         factory: &mut Factory<B>,
         queue: QueueId,
-        _aux: &(),
+        _aux: &Camera,
         _buffers: Vec<NodeBuffer>,
         _images: Vec<NodeImage>,
         set_layouts: &[Handle<DescriptorSetLayout<B>>],
@@ -237,13 +210,6 @@ where
             .build(queue, &factory)
             .unwrap();
 
-        println!(
-            "CUBE INDEX: {:#?} CUBE VERTICES: {:#?} POLY: {}.",
-            *CUBE_INDICES,
-            *CUBE_VERTICES,
-            CUBE.indexed_polygon_count()
-        );
-
         let positions: Vec<nalgebra::Transform3<f32>> = (0..MAX_OBJECTS)
             .map(|i| {
                 nalgebra::Transform3::identity()
@@ -261,7 +227,7 @@ where
     }
 }
 
-impl<B> SimpleGraphicsPipeline<B, ()> for Pipeline<B>
+impl<B> SimpleGraphicsPipeline<B, Camera> for Pipeline<B>
 where
     B: hal::Backend,
 {
@@ -273,7 +239,7 @@ where
         _queue: QueueId,
         _set_layouts: &[Handle<DescriptorSetLayout<B>>],
         index: usize,
-        _aux: &(),
+        aux: &Camera,
     ) -> PrepareResult {
         debug!("Pipeline Mesh, Preparing {}.", index);
 
@@ -284,12 +250,8 @@ where
                     &mut self.buffer,
                     uniform_offset(index, self.align) as u64,
                     &[UniformArgs {
-                        proj: nalgebra::Perspective3::new(1920. / 1080., 3.14116 / 4.0, 1.0, 300.0)
-                            .to_homogeneous(),
-                        view: (nalgebra::Projective3::identity()
-                            * nalgebra::Translation3::new(0.0, 0.0, 10.0))
-                        .inverse()
-                        .to_homogeneous(),
+                        proj: aux.proj.to_homogeneous(),
+                        view: aux.view.inverse().to_homogeneous(),
                     }],
                 )
                 .unwrap();
@@ -333,7 +295,7 @@ where
         layout: &B::PipelineLayout,
         mut encoder: RenderPassEncoder<'_, B>,
         index: usize,
-        _aux: &(),
+        _aux: &Camera,
     ) {
         debug!("Pipeline Mesh, Drawing index: {}.", index);
 
@@ -362,7 +324,7 @@ where
         }
     }
 
-    fn dispose(self, _factory: &mut Factory<B>, _aux: &()) {
+    fn dispose(self, _factory: &mut Factory<B>, _aux: &Camera) {
         info!("Disposing Pipeline Mesh.");
     }
 }
