@@ -84,7 +84,7 @@ pub struct Pipeline<B: hal::Backend> {
     positions: Vec<nalgebra::Transform3<f32>>,
 }
 
-const MAX_OBJECTS: usize = 100;
+const MAX_OBJECTS: usize = 100_000;
 const UNIFORM_SIZE: u64 = size_of::<UniformArgs>() as u64;
 const MODELS_SIZE: u64 = size_of::<Model>() as u64 * MAX_OBJECTS as u64;
 const INDIRECT_SIZE: u64 = size_of::<DrawIndexedCommand>() as u64;

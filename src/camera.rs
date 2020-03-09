@@ -19,7 +19,7 @@ impl Camera {
     ) -> Self {
         Camera {
             speed,
-            sensitivity: 0.001,
+            sensitivity: 0.01,
             view: nalgebra::Isometry3::look_at_rh(&eye, &target, &Vector3::y()),
             proj: Perspective3::new(aspect, std::f32::consts::FRAC_PI_3, 1.0, 400.0),
         }

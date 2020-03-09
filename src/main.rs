@@ -148,10 +148,14 @@ fn run<B: hal::Backend>(
                 cam.run(&inputs, elapsed.as_secs_f32());
                 inputs.mouse_x = 0.0;
                 inputs.mouse_y = 0.0;
-                
             }
             Event::RedrawRequested(_) => {
-                
+                if let Some(ref mut graph) = graph {
+                    graph.run(&mut factory, &mut families, &cam);
+                    frame += 1;
+                }
+
+                info!("Request redraw.");
             }
             _ => {}
         }
