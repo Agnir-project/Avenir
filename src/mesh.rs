@@ -2,7 +2,9 @@ use genmesh::{
     generators::{IndexedPolygon, SharedVertex},
     MapToVertices, Triangulate, Vertices,
 };
-use nalgebra::{Translation3, Matrix4, Matrix3, Perspective3, Point3, Projective3, Vector3, Isometry3};
+use nalgebra::{
+    Isometry3, Matrix3, Matrix4, Perspective3, Point3, Projective3, Translation3, Vector3,
+};
 use rendy::command::{DrawIndexedCommand, QueueId, RenderPassEncoder};
 use rendy::factory::Factory;
 use rendy::graph::render::*;
@@ -13,12 +15,12 @@ use rendy::graph::{
 use rendy::hal;
 use rendy::hal::{adapter::PhysicalDevice, device::Device};
 
+use crate::camera::Camera;
 use rendy::mesh::{AsVertex, Mesh, Model, PosColorNorm};
 use rendy::resource::{Buffer, BufferInfo, DescriptorSet, DescriptorSetLayout, Escape, Handle};
 use rendy::shader::{
     Shader, ShaderKind, ShaderSet, ShaderSetBuilder, SourceLanguage, SourceShaderInfo, SpirvShader,
 };
-use crate::camera::Camera;
 use std::mem::size_of;
 
 lazy_static::lazy_static! {
@@ -42,7 +44,7 @@ lazy_static::lazy_static! {
         .with_vertex(&*VERTEX).unwrap()
         .with_fragment(&*FRAGMENT).unwrap();
 
-    static ref CUBE: genmesh::generators::Cone = genmesh::generators::Cone::new(10);
+    static ref CUBE: genmesh::generators::Cone = genmesh::generators::Cone::new(30);
 
     static ref CUBE_INDICES: Vec<u32> = genmesh::Vertices::vertices(CUBE.indexed_polygon_iter())
         .map(|i| i as u32)

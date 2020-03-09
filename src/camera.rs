@@ -1,51 +1,42 @@
-use nalgebra::{Isometry3, Perspective3, Vector3, Translation3};
 use crate::mesh::UniformArgs;
 use crate::Inputs;
+use nalgebra::{Isometry3, Perspective3, Translation3, Vector3, Unit, UnitQuaternion};
 
 pub struct Camera {
+    pub speed: f32,
+    pub sensitivity: f64,
     pub view: Isometry3<f32>,
     pub proj: Perspective3<f32>,
-    pub rotation_speed: f32,
 }
 
 impl Camera {
+    /// Builds a new `FlyMovementSystem` using the provided speeds and axis controls.
     pub fn look_at(
+        speed: f32,
         eye: nalgebra::Point3<f32>,
         target: nalgebra::Point3<f32>,
         aspect: f32,
     ) -> Self {
-        let view = nalgebra::Isometry3::look_at_rh(&eye, &target, &Vector3::y());
-        let proj = Perspective3::new(aspect, std::f32::consts::FRAC_PI_3, 1.0, 200.0);
-
-        Camera { proj, view, rotation_speed: 0.01 }
+        Camera {
+            speed,
+            sensitivity: 0.001,
+            view: nalgebra::Isometry3::look_at_rh(&eye, &target, &Vector3::y()),
+            proj: Perspective3::new(aspect, std::f32::consts::FRAC_PI_3, 1.0, 400.0),
+        }
     }
 
-    pub fn center_euler(&mut self, inputs: Inputs) {
-        let axis_angle = if inputs.right_rot {
-            Vector3::y() * self.rotation_speed
-        } else if inputs.down_rot {
-            Vector3::x() * self.rotation_speed
-        } else if inputs.left_rot {
-            Vector3::y() * -self.rotation_speed
-        } else if inputs.up_rot {
-            Vector3::x() * -self.rotation_speed
-        } else {
-            Vector3::x() * 0.0
-        };
-        let rot = nalgebra::UnitQuaternion::new(axis_angle);
-        self.view.append_rotation_wrt_center_mut(&rot);
-    }
+    pub fn run(&mut self, inputs: &Inputs, delta_sec: f32) {
+        let x = if inputs.right && inputs.left { 0.0 } else if inputs.right { 1.0 } else if inputs.left { -1.0 } else { 0.0 };
+        let y = if inputs.up && inputs.down { 0.0 } else if inputs.up { 1.0 } else if inputs.down { -1.0 } else { 0.0 };
+        let z = if inputs.front && inputs.back { 0.0 } else if inputs.front { 1.0 } else if inputs.back { -1.0 } else { 0.0 };
 
-    pub fn translate(&mut self, translation: &Translation3<f32>) {
-        self.view.append_translation_mut(translation);
-    }
-}
+        self.view.rotation *= UnitQuaternion::from_axis_angle(&Vector3::x_axis(), (-inputs.mouse_y * self.sensitivity) as f32);
 
-impl Into<UniformArgs> for Camera {
-    fn into(self) -> UniformArgs {
-        UniformArgs {
-            view: self.view.inverse().to_homogeneous(),
-            proj: self.proj.to_homogeneous(),
+        let q = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), (-inputs.mouse_x * self.sensitivity) as f32);
+        self.view.rotation = q * self.view.rotation;
+
+        if let Some(dir) = Unit::try_new(Vector3::new(x, y, z), nalgebra::convert(1.0e-6)) {
+            self.view.translation.vector += self.view.rotation * dir.as_ref() * (delta_sec as f32 * self.speed);
         }
     }
 }
