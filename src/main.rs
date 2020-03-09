@@ -64,7 +64,7 @@ type Backend = rendy::empty::Backend;
 const WIDTH: u32 = 3840;
 const HEIGHT: u32 = 2160;
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct Inputs {
     left: bool,
     right: bool,
@@ -85,7 +85,7 @@ fn run<B: hal::Backend>(
 ) {
     let mut frame = 0u64;
     let mut cam = Camera::look_at(
-        1.0,
+        10.0,
         Point3::new(0.0, 0.0, -10.0),
         Point3::new(0.0, 0.0, 0.0),
         WIDTH as f32 / HEIGHT as f32,
@@ -96,7 +96,6 @@ fn run<B: hal::Backend>(
 
     let started = std::time::Instant::now();
     let mut checkpoint = started;
-    let mut mouse_prev = nalgebra::Point2::new(0, 0);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -113,17 +112,6 @@ fn run<B: hal::Backend>(
                 WindowEvent::Resized(size) => {
                     info!("Window Resized {:?}.", size);
                 }
-                WindowEvent::CursorMoved {
-                    position,
-                    modifiers,
-                    ..
-                } => {
-                    if modifiers.ctrl() {
-                        info!("OldPosition: {:?} | Position: {:?}", mouse_prev, position);
-                        mouse_prev.x = position.x;
-                        mouse_prev.y = position.y;
-                    }
-                }
                 WindowEvent::KeyboardInput {
                     input:
                         KeyboardInput {
@@ -135,29 +123,22 @@ fn run<B: hal::Backend>(
                 } => match (virtual_code, state) {
                     (VirtualKeyCode::A, ElementState::Pressed) => inputs.left = true,
                     (VirtualKeyCode::A, ElementState::Released) => inputs.left = false,
-                    (VirtualKeyCode::S, ElementState::Pressed) => inputs.down = true,
-                    (VirtualKeyCode::S, ElementState::Released) => inputs.down = false,
+                    (VirtualKeyCode::S, ElementState::Pressed) => inputs.back = true,
+                    (VirtualKeyCode::S, ElementState::Released) => inputs.back = false,
                     (VirtualKeyCode::D, ElementState::Pressed) => inputs.right = true,
                     (VirtualKeyCode::D, ElementState::Released) => inputs.right = false,
-                    (VirtualKeyCode::W, ElementState::Pressed) => inputs.up = true,
-                    (VirtualKeyCode::W, ElementState::Released) => inputs.up = false,
-
-                    (VirtualKeyCode::Up, ElementState::Pressed) => inputs.front = true,
-                    (VirtualKeyCode::Up, ElementState::Released) => inputs.front = false,
-                    (VirtualKeyCode::Down, ElementState::Pressed) => inputs.back = true,
-                    (VirtualKeyCode::Down, ElementState::Released) => inputs.back = false,
+                    (VirtualKeyCode::W, ElementState::Pressed) => inputs.front = true,
+                    (VirtualKeyCode::W, ElementState::Released) => inputs.front = false,
                     _ => {}
                 },
                 _ => {}
             },
             Event::MainEventsCleared => {
                 factory.maintain(&mut families);
-
                 if let Some(ref mut graph) = graph {
                     graph.run(&mut factory, &mut families, &cam);
                     frame += 1;
                 }
-
                 let elapsed = checkpoint.elapsed();
                 // Print fps
                 // let elapsed_ns = elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64;
@@ -165,6 +146,12 @@ fn run<B: hal::Backend>(
                 frame = 0;
                 checkpoint += elapsed;
                 cam.run(&inputs, elapsed.as_secs_f32());
+                inputs.mouse_x = 0.0;
+                inputs.mouse_y = 0.0;
+                
+            }
+            Event::RedrawRequested(_) => {
+                
             }
             _ => {}
         }
@@ -187,7 +174,6 @@ fn main() {
     let window = WindowBuilder::new()
         .with_inner_size(LogicalSize::new(WIDTH, HEIGHT))
         .with_title("Avenir");
-
 
     let rendy = AnyWindowedRendy::init_auto(&config, window, &event_loop).unwrap();
     rendy::with_any_windowed_rendy!((rendy)

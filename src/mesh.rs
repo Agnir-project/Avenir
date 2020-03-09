@@ -22,6 +22,7 @@ use rendy::shader::{
     Shader, ShaderKind, ShaderSet, ShaderSetBuilder, SourceLanguage, SourceShaderInfo, SpirvShader,
 };
 use std::mem::size_of;
+use rand::Rng;
 
 lazy_static::lazy_static! {
     static ref VERTEX: SpirvShader = SourceShaderInfo::new(
@@ -212,10 +213,12 @@ where
             .build(queue, &factory)
             .unwrap();
 
+        let mut rng = rand::thread_rng();
+
         let positions: Vec<nalgebra::Transform3<f32>> = (0..MAX_OBJECTS)
-            .map(|i| {
+            .map(|_| {
                 nalgebra::Transform3::identity()
-                    * nalgebra::Translation3::new(i as f32, i as f32, i as f32)
+                    * nalgebra::Translation3::new(rng.gen_range(-100.0, 100.0), rng.gen_range(-100.0, 100.0),  rng.gen_range(-100.0, 100.0))
             })
             .collect();
 
