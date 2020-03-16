@@ -1,6 +1,6 @@
 [package]
 name = "avenir"
-version = "0.1.0"
+version = "0.2.0"
 authors = [ "Quentin <quentin.liardeaux@epitech.eu>"
           , "Kilian Perrier <kilian.perrier@epitech.eu>"
           , "Thomas Nicollet <thomas.nicollet@epitech.eu>"
