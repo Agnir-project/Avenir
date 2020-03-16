@@ -1,7 +1,5 @@
 use genmesh::generators::{IndexedPolygon, SharedVertex};
-use nalgebra::{
-    Isometry3, Matrix3, Matrix4, Perspective3, Point3, Projective3, Translation3, Vector3,
-};
+use nalgebra::{Matrix3, Matrix4, Perspective3, Point3, Projective3, Translation3, Vector3};
 use rendy::command::{DrawIndexedCommand, QueueId, RenderPassEncoder};
 use rendy::factory::Factory;
 use rendy::graph::render::*;
@@ -13,6 +11,7 @@ use rendy::hal;
 use rendy::hal::{adapter::PhysicalDevice, device::Device};
 
 use crate::camera::Camera;
+use generic_octree::{render, Octree};
 use rand::Rng;
 use rendy::mesh::{AsVertex, Mesh, Model, PosColorNorm};
 use rendy::resource::{Buffer, BufferInfo, DescriptorSet, DescriptorSetLayout, Escape, Handle};
@@ -41,6 +40,10 @@ lazy_static::lazy_static! {
     static ref SHADERS: ShaderSetBuilder = ShaderSetBuilder::default()
         .with_vertex(&*VERTEX).unwrap()
         .with_fragment(&*FRAGMENT).unwrap();
+
+    static ref OCTREE_TREE: Octree<u64, u32> = Octree::<u64, u32>::load_from_file("examples/monu_optimal.tree").unwrap();
+
+    static ref OCTREE_MODEL: render::Model = render::Model::from(&*OCTREE_TREE);
 
     static ref CUBE: genmesh::generators::Cone = genmesh::generators::Cone::new(30);
 
@@ -81,7 +84,7 @@ pub struct Pipeline<B: hal::Backend> {
     positions: Vec<nalgebra::Transform3<f32>>,
 }
 
-const MAX_OBJECTS: usize = 100_000;
+const MAX_OBJECTS: usize = 10;
 const UNIFORM_SIZE: u64 = size_of::<UniformArgs>() as u64;
 const MODELS_SIZE: u64 = size_of::<Model>() as u64 * MAX_OBJECTS as u64;
 const INDIRECT_SIZE: u64 = size_of::<DrawIndexedCommand>() as u64;
@@ -205,8 +208,8 @@ where
         }
 
         let mesh = Mesh::<B>::builder()
-            .with_vertices(&(*CUBE_VERTICES)[..])
-            .with_indices(&(*CUBE_INDICES)[..])
+            .with_vertices(&(*OCTREE_MODEL.vertices)[..])
+            .with_indices(&(*OCTREE_MODEL.indices)[..])
             .build(queue, &factory)
             .unwrap();
 

@@ -41,10 +41,9 @@ use rendy::{
 #[macro_use]
 extern crate log;
 
-use avenir::{Inputs, camera::Camera, graph};
-use log::debug;
+use avenir::{camera::Camera, graph, Inputs};
 use env_logger;
-use nalgebra::{Point3, Vector3};
+use nalgebra::Point3;
 
 #[cfg(feature = "metal")]
 type Backend = rendy::metal::Backend;
@@ -61,6 +60,7 @@ type Backend = rendy::empty::Backend;
 const WIDTH: u32 = 3840;
 const HEIGHT: u32 = 2160;
 
+#[allow(dead_code)] // Bug in rust-analyzer.
 fn run<B: hal::Backend>(
     event_loop: EventLoop<()>,
     mut factory: Factory<B>,
