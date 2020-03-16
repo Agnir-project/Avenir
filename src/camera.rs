@@ -2,10 +2,18 @@ use crate::mesh::UniformArgs;
 use crate::Inputs;
 use nalgebra::{Isometry3, Perspective3, Translation3, Unit, UnitQuaternion, Vector3};
 
+/// Represent a configurable camera in 3D.
 pub struct Camera {
+    /// The movement speed of the camera along axis.
     pub speed: f32,
+
+    /// The rotation sensitivity, often linked to mouse movement.
     pub sensitivity: f64,
+
+    /// View matrix, represent Camera position and rotation. 
     pub view: Isometry3<f32>,
+
+    /// Projection matrix, transform 3D world to 2D coordinate.
     pub proj: Perspective3<f32>,
 }
 
@@ -25,6 +33,7 @@ impl Camera {
         }
     }
 
+    /// Provide input to update camera. TODO: Decouple inputs and Camera.
     pub fn run(&mut self, inputs: &Inputs, delta_sec: f32) {
         let x = if inputs.right && inputs.left {
             0.0
