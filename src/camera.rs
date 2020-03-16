@@ -1,6 +1,5 @@
-use crate::mesh::UniformArgs;
+use nalgebra::{Isometry3, Perspective3, UnitQuaternion, Vector3};
 use crate::Inputs;
-use nalgebra::{Isometry3, Perspective3, Translation3, Unit, UnitQuaternion, Vector3};
 
 /// Represent a configurable camera in 3D.
 pub struct Camera {
@@ -10,7 +9,7 @@ pub struct Camera {
     /// The rotation sensitivity, often linked to mouse movement.
     pub sensitivity: f64,
 
-    /// View matrix, represent Camera position and rotation. 
+    /// View matrix, represent Camera position and rotation.
     pub view: Isometry3<f32>,
 
     /// Projection matrix, transform 3D world to 2D coordinate.

@@ -1,7 +1,4 @@
-use genmesh::{
-    generators::{IndexedPolygon, SharedVertex},
-    MapToVertices, Triangulate, Vertices,
-};
+use genmesh::generators::{IndexedPolygon, SharedVertex};
 use nalgebra::{
     Isometry3, Matrix3, Matrix4, Perspective3, Point3, Projective3, Translation3, Vector3,
 };
@@ -16,13 +13,13 @@ use rendy::hal;
 use rendy::hal::{adapter::PhysicalDevice, device::Device};
 
 use crate::camera::Camera;
+use rand::Rng;
 use rendy::mesh::{AsVertex, Mesh, Model, PosColorNorm};
 use rendy::resource::{Buffer, BufferInfo, DescriptorSet, DescriptorSetLayout, Escape, Handle};
 use rendy::shader::{
     Shader, ShaderKind, ShaderSet, ShaderSetBuilder, SourceLanguage, SourceShaderInfo, SpirvShader,
 };
 use std::mem::size_of;
-use rand::Rng;
 
 lazy_static::lazy_static! {
     static ref VERTEX: SpirvShader = SourceShaderInfo::new(
@@ -218,7 +215,11 @@ where
         let positions: Vec<nalgebra::Transform3<f32>> = (0..MAX_OBJECTS)
             .map(|_| {
                 nalgebra::Transform3::identity()
-                    * nalgebra::Translation3::new(rng.gen_range(-100.0, 100.0), rng.gen_range(-100.0, 100.0),  rng.gen_range(-100.0, 100.0))
+                    * nalgebra::Translation3::new(
+                        rng.gen_range(-100.0, 100.0),
+                        rng.gen_range(-100.0, 100.0),
+                        rng.gen_range(-100.0, 100.0),
+                    )
             })
             .collect();
 
