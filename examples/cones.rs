@@ -114,6 +114,8 @@ fn run<B: hal::Backend>(
                     (VirtualKeyCode::D, ElementState::Released) => inputs.right = false,
                     (VirtualKeyCode::W, ElementState::Pressed) => inputs.front = true,
                     (VirtualKeyCode::W, ElementState::Released) => inputs.front = false,
+                    (VirtualKeyCode::L, ElementState::Pressed) => cam.ambient_power += 0.1,
+                    (VirtualKeyCode::K, ElementState::Pressed) => cam.ambient_power -= 0.1,
                     _ => {}
                 },
                 _ => {}

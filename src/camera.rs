@@ -14,6 +14,9 @@ pub struct Camera {
 
     /// Projection matrix, transform 3D world to 2D coordinate.
     pub proj: Perspective3<f32>,
+
+    /// Test TODO: Remove
+    pub ambient_power: f32,
 }
 
 impl Camera {
@@ -29,6 +32,7 @@ impl Camera {
             sensitivity: 0.01,
             view: nalgebra::Isometry3::look_at_rh(&eye, &target, &Vector3::y()),
             proj: Perspective3::new(aspect, std::f32::consts::FRAC_PI_3, 1.0, 400.0),
+            ambient_power: 1.0,
         }
     }
 

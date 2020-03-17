@@ -10,6 +10,7 @@ layout(location = 3) in vec4 model[4]; // per-instance.
 layout(set = 0, binding = 0) uniform Args {
     mat4 proj;
     mat4 view;
+    float ambient_power;
 };
 
 layout(location = 0) out vec4 frag_pos;

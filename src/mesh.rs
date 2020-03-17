@@ -71,6 +71,7 @@ lazy_static::lazy_static! {
 pub struct UniformArgs {
     pub proj: Matrix4<f32>,
     pub view: Matrix4<f32>,
+    pub ambient_power: f32,
 }
 
 #[derive(Debug, Default)]
@@ -252,6 +253,7 @@ where
                     &[UniformArgs {
                         proj: aux.proj.to_homogeneous(),
                         view: aux.view.inverse().to_homogeneous(),
+                        ambient_power: aux.ambient_power,
                     }],
                 )
                 .unwrap();
