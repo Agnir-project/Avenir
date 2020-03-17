@@ -20,6 +20,6 @@ void main() {
     mat4 model_mat = mat4(model[0], model[1], model[2], model[3]);
     frag_color = color;
     frag_norm = normalize((vec4(normal, 1.0) * model_mat).xyz);
-    frag_pos = model_mat * vec4(position, 1.0);
+    frag_pos = model_mat * vec4(position * 100, 1.0);
     gl_Position = proj * view * frag_pos;
 }

@@ -84,7 +84,7 @@ pub struct Pipeline<B: hal::Backend> {
     positions: Vec<nalgebra::Transform3<f32>>,
 }
 
-const MAX_OBJECTS: usize = 10;
+const MAX_OBJECTS: usize = 1;
 const UNIFORM_SIZE: u64 = size_of::<UniformArgs>() as u64;
 const MODELS_SIZE: u64 = size_of::<Model>() as u64 * MAX_OBJECTS as u64;
 const INDIRECT_SIZE: u64 = size_of::<DrawIndexedCommand>() as u64;
@@ -213,17 +213,8 @@ where
             .build(queue, &factory)
             .unwrap();
 
-        let mut rng = rand::thread_rng();
-
         let positions: Vec<nalgebra::Transform3<f32>> = (0..MAX_OBJECTS)
-            .map(|_| {
-                nalgebra::Transform3::identity()
-                    * nalgebra::Translation3::new(
-                        rng.gen_range(-100.0, 100.0),
-                        rng.gen_range(-100.0, 100.0),
-                        rng.gen_range(-100.0, 100.0),
-                    )
-            })
+            .map(|_| nalgebra::Transform3::identity() * nalgebra::Translation3::new(0.0, 0.0, 0.0))
             .collect();
 
         Ok(Pipeline {
