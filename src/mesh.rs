@@ -151,7 +151,7 @@ where
                     binding: 0,
                     ty: hal::pso::DescriptorType::UniformBuffer,
                     count: 1,
-                    stage_flags: hal::pso::ShaderStageFlags::VERTEX,
+                    stage_flags: hal::pso::ShaderStageFlags::GRAPHICS,
                     immutable_samplers: false,
                 }],
             }],
